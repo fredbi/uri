@@ -795,3 +795,13 @@ func Test_URL(t *testing.T) {
 	_, err = ParseReference(pathThatLooksSchemeRelative)
 	assert.NoError(t, err)
 }
+
+func Test_Issue3(t *testing.T) {
+	t.Run("should detect a path starting with a /", func(t *testing.T) {
+		u, err := Parse("file:///etc/hosts")
+		require.NoError(t, err)
+		auth := u.Authority()
+		require.Equal(t, "/etc/hosts", auth.Path())
+		require.Empty(t, auth.Host())
+	})
+}

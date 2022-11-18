@@ -517,7 +517,7 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 	} else {
 		// authority   = [ userinfo "@" ] host [ ":" port ]
 		slashEnd := strings.IndexByte(hier, '/')
-		if slashEnd > 0 {
+		if slashEnd > -1 {
 			if slashEnd < len(hier) {
 				path = hier[slashEnd:]
 			}
