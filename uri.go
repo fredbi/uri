@@ -13,6 +13,8 @@
 package uri
 
 import (
+	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"regexp"
@@ -115,7 +117,14 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		return nil, ErrInvalidURI
 	}
 
-	if schemeEnd == 1 || hierPartEnd == 1 || queryEnd == 1 {
+	if schemeEnd == 1 {
+		return nil, errors.Join(
+			ErrInvalidScheme,
+			fmt.Errorf("scheme has a minimum length of 2 characters"),
+		)
+	}
+
+	if hierPartEnd == 1 || queryEnd == 1 {
 		// ".:", ".?", ".#"
 		return nil, ErrInvalidURI
 	}
@@ -144,7 +153,10 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		}
 	case !withURIReference:
 		// scheme is required for URI
-		return nil, ErrNoSchemeFound
+		return nil, errors.Join(
+			ErrNoSchemeFound,
+			fmt.Errorf("for URI (not URI reference), the scheme is required"),
+		)
 	case isRelative:
 		// scheme is optional for URI references.
 		//
@@ -159,10 +171,12 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		if hierPartEnd < 0 {
 			hierPartEnd = len(raw)
 		}
+
 		authorityInfo, err := parseAuthority(raw[curr:hierPartEnd])
 		if err != nil {
-			return nil, ErrInvalidURI
+			return nil, errors.Join(ErrInvalidURI, err)
 		}
+
 		u := &uri{
 			scheme:    scheme,
 			hierPart:  raw[curr:hierPartEnd],
@@ -182,8 +196,9 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		hierPart = raw[curr:hierPartEnd]
 		authorityInfo, err = parseAuthority(hierPart)
 		if err != nil {
-			return nil, ErrInvalidURI
+			return nil, errors.Join(ErrInvalidURI, err)
 		}
+
 		if hierPartEnd+1 < len(raw) {
 			if queryEnd < 0 {
 				// query ?, no fragment
@@ -193,6 +208,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 				query = raw[hierPartEnd+1 : queryEnd]
 			}
 		}
+
 		curr = hierPartEnd + 1
 	}
 
@@ -201,7 +217,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		hierPart = raw[curr:queryEnd]
 		authorityInfo, err = parseAuthority(hierPart)
 		if err != nil {
-			return nil, ErrInvalidURI
+			return nil, errors.Join(ErrInvalidURI, err)
 		}
 
 		u := &uri{
@@ -210,6 +226,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			authority: authorityInfo,
 			query:     query,
 		}
+
 		return u, u.Validate()
 	}
 
@@ -220,9 +237,10 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			hierPart = raw[curr:queryEnd]
 			authorityInfo, err = parseAuthority(hierPart)
 			if err != nil {
-				return nil, ErrInvalidURI
+				return nil, errors.Join(ErrInvalidURI, err)
 			}
 		}
+
 		if queryEnd+1 < len(raw) {
 			fragment = raw[queryEnd+1:]
 		}
@@ -301,16 +319,19 @@ func (u *uri) Validate() error {
 			return err
 		}
 	}
+
 	if u.query != "" {
 		if err := u.validateQuery(u.query); err != nil {
 			return err
 		}
 	}
+
 	if u.fragment != "" {
 		if err := u.validateFragment(u.fragment); err != nil {
 			return err
 		}
 	}
+
 	if u.hierPart != "" {
 		if u.authority != nil {
 			return u.Authority().Validate(u.scheme)

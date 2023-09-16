@@ -354,7 +354,7 @@ func Test_MoreParse(t *testing.T) {
 
 	t.Run("should detect an invalid scheme", func(t *testing.T) {
 		_, err := Parse("1http://bob")
-		assert.Equal(t, ErrInvalidScheme, err)
+		assert.ErrorIs(t, err, ErrInvalidScheme)
 	})
 
 	t.Run("should parse without error", func(t *testing.T) {
@@ -402,39 +402,44 @@ func Test_MoreParse(t *testing.T) {
 	})
 
 	t.Run("should detect an invalid query", func(t *testing.T) {
-		_, err := Parse("http://www.example.org/hello/world.txt/?id=5&pa{}rt=three#there-you-go")
-		assert.Equal(t, ErrInvalidQuery, err)
+		u, err := Parse("http://www.example.org/hello/world.txt/?id=5&pa{}rt=three#there-you-go")
+		require.Errorf(t, err,
+			"expected the invalid { character in the query part to be caught as invalid: %q", u,
+		)
+		assert.ErrorIsf(t, err, ErrInvalidQuery,
+			"got an error as expected, but did not expect this type: %v (%T)", err, err,
+		)
 	})
 
 	t.Run("should detect an invalid path", func(t *testing.T) {
 		_, err := Parse("http://www.example.org/hello/{}yzx;=1.1/world.txt/?id=5&part=three#there-you-go")
-		assert.Equal(t, ErrInvalidPath, err)
+		assert.ErrorIs(t, err, ErrInvalidPath)
 	})
 
 	t.Run("should detect an invalid host", func(t *testing.T) {
 		_, err := Parse("https://user:passwd@286;0.0.1:8080/a?query=value#fragment")
-		assert.Equal(t, ErrInvalidHost, err)
+		assert.ErrorIs(t, err, ErrInvalidHost)
 
 		_, err = Parse("https://user:passwd@256.256.256.256:8080/a?query=value#fragment")
-		assert.Equal(t, ErrInvalidHost, err)
+		assert.ErrorIs(t, err, ErrInvalidHost)
 
 		_, err = Parse("http+unix://%2Fvar%2Frun%2Fsocket/path?key=value") // no authority => no "//"
-		assert.Equal(t, ErrInvalidHost, err)
+		assert.ErrorIs(t, err, ErrInvalidHost)
 	})
 
 	t.Run("should detect an invalid URI (lack closing bracket)", func(t *testing.T) {
 		_, err := Parse("https://user:passwd@[FF02:30:0:0:0:0:0:5%25en0:8080/a?query=value#fragment")
-		assert.Equal(t, ErrInvalidURI, err)
+		assert.ErrorIs(t, err, ErrInvalidURI)
 	})
 
 	t.Run("should detect an invalid port", func(t *testing.T) {
 		_, err := Parse("https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A]:8080:8090/a?query=value#fragment")
-		assert.Equal(t, ErrInvalidPort, err)
+		assert.ErrorIs(t, err, ErrInvalidPort)
 	})
 
 	t.Run("should detect an invalid user", func(t *testing.T) {
 		_, err := Parse("https://user{}:passwd@[FF02:30:0:0:0:0:0:5%25en0]:8080/a?query=value#fragment")
-		assert.Equal(t, ErrInvalidUserInfo, err)
+		assert.ErrorIs(t, err, ErrInvalidUserInfo)
 	})
 
 	t.Run("should parse and verify properties", func(t *testing.T) {
@@ -555,7 +560,7 @@ func Test_Edge(t *testing.T) {
 
 	t.Run("should error on empty host", func(t *testing.T) {
 		_, err := Parse("https://user:passwd@:8080/a?query=value#fragment")
-		require.Equal(t, ErrMissingHost, err)
+		require.ErrorIs(t, err, ErrMissingHost)
 	})
 
 	t.Run("percent encoded host", func(t *testing.T) {
