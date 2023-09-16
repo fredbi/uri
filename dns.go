@@ -4,8 +4,11 @@ package uri
 // that does not follow RFC3986 (which is quite generic), and assumes a valid
 // DNS hostname instead.
 //
+// This function is declared as a global variable that may be overridden at the package level,
+// in case you need specific schemes to validate the host as a DNS name.
+//
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-func UsesDNSHostValidation(scheme string) bool {
+var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
 	case "dns":
 		return true

@@ -57,6 +57,9 @@ Internationalization support:
 
 IPv6 addressing scheme reference and erratum:
 - https://tools.ietf.org/html/rfc6874
+- https://www.rfc-editor.org/rfc/rfc3513
+
+RFC 397 TODO(fredbi)
 
 This allows for stricter conformance than the `net/url` in the Go standard libary,
 which provides a workable but loose implementation of the RFC.

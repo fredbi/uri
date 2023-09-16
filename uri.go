@@ -77,20 +77,24 @@ func IsURI(raw string) bool {
 	return err == nil
 }
 
-// IsURIReference tells if a URI reference is valid according to RFC3986/RFC397.
+// IsURIReference tells if a URI reference is valid according to RFC3986/RFC397
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-4.1 and
+// https://www.rfc-editor.org/rfc/rfc3986#section-4.2
 func IsURIReference(raw string) bool {
 	_, err := ParseReference(raw)
 	return err == nil
 }
 
-// Parse attempts to parse a URI and returns an error if the URI
-// is not RFC3986-compliant.
+// Parse attempts to parse a URI.
+// It returns an error if the URI is not RFC3986-compliant.
 func Parse(raw string) (URI, error) {
 	return parse(raw, false)
 }
 
-// ParseReference attempts to parse a URI relative reference and returns an error if the URI
-// is not RFC3986 compliant.
+// ParseReference attempts to parse a URI relative reference.
+//
+// It returns an error if the URI is not RFC3986-compliant.
 func ParseReference(raw string) (URI, error) {
 	return parse(raw, true)
 }
@@ -349,6 +353,9 @@ func (a authorityInfo) String() string {
 	return buf.String()
 }
 
+// Validate the Authority part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
 func (a authorityInfo) Validate(schemes ...string) error {
 	for _, segment := range strings.Split(a.path, "/") {
 		if segment == "" {
