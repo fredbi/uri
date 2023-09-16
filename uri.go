@@ -297,18 +297,18 @@ func isNumerical(input string) bool {
 // Validate checks that all parts of a URI abide by allowed characters.
 func (u *uri) Validate() error {
 	if u.scheme != "" {
-		if ok := rexScheme.MatchString(u.scheme); !ok {
-			return ErrInvalidScheme
+		if err := u.validateScheme(u.scheme); err != nil {
+			return err
 		}
 	}
 	if u.query != "" {
-		if ok := rexQuery.MatchString(u.query); !ok {
-			return ErrInvalidQuery
+		if err := u.validateQuery(u.query); err != nil {
+			return err
 		}
 	}
 	if u.fragment != "" {
-		if ok := rexFragment.MatchString(u.fragment); !ok {
-			return ErrInvalidFragment
+		if err := u.validateFragment(u.fragment); err != nil {
+			return err
 		}
 	}
 	if u.hierPart != "" {
@@ -316,7 +316,53 @@ func (u *uri) Validate() error {
 			return u.Authority().Validate(u.scheme)
 		}
 	}
+
 	// empty hierpart case
+	return nil
+}
+
+// validateScheme verifies the correctness of the scheme part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.1
+//
+//	scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+//
+// NOTE: scheme is not supposed to contain any percent-encoded sequence.
+// TODO(fredbi): verify the IRI RFC to check if unicode is allowed in scheme.
+func (u *uri) validateScheme(scheme string) error {
+	if ok := rexScheme.MatchString(scheme); !ok {
+		return ErrInvalidScheme
+	}
+
+	return nil
+}
+
+// validateQuery validates the query part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.4
+//
+//	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
+//	query = *( pchar / "/" / "?" )
+func (u *uri) validateQuery(query string) error {
+	if ok := rexQuery.MatchString(query); !ok {
+		return ErrInvalidQuery
+	}
+
+	return nil
+}
+
+// validateFragment validatesthe fragment part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.5
+//
+//	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
+//
+// fragment    = *( pchar / "/" / "?" )
+func (u *uri) validateFragment(fragment string) error {
+	if ok := rexFragment.MatchString(fragment); !ok {
+		return ErrInvalidFragment
+	}
+
 	return nil
 }
 
@@ -336,18 +382,22 @@ func (a authorityInfo) String() string {
 	buf := strings.Builder{}
 	buf.WriteString(a.prefix)
 	buf.WriteString(a.userinfo)
+
 	if len(a.userinfo) > 0 {
 		buf.WriteByte(atHost)
 	}
+
 	if strings.IndexByte(a.host, colonMark) > 0 {
 		// ipv6 address host
 		buf.WriteString("[" + a.host + "]")
 	} else {
 		buf.WriteString(a.host)
 	}
+
 	if len(a.port) > 0 {
 		buf.WriteByte(colonMark)
 	}
+
 	buf.WriteString(a.port)
 	buf.WriteString(a.path)
 	return buf.String()
@@ -357,7 +407,38 @@ func (a authorityInfo) String() string {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
 func (a authorityInfo) Validate(schemes ...string) error {
-	for _, segment := range strings.Split(a.path, "/") {
+	if a.path != "" {
+		if err := a.validatePath(a.path); err != nil {
+			return err
+		}
+	}
+
+	if a.host != "" {
+		if err := a.validateHost(a.host, schemes...); err != nil {
+			return err
+		}
+	}
+
+	if a.port != "" {
+		if err := a.validatePort(a.port, a.host); err != nil {
+			return err
+		}
+	}
+
+	if a.userinfo != "" {
+		if err := a.validateUserInfo(a.userinfo); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validatePath validates the path part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.3
+func (a authorityInfo) validatePath(path string) error {
+	for _, segment := range strings.Split(path, "/") {
 		if segment == "" {
 			continue
 		}
@@ -366,48 +447,87 @@ func (a authorityInfo) Validate(schemes ...string) error {
 		}
 	}
 
-	if a.host != "" {
-		var isIP bool
-		if ok := rexIPv6Zone.MatchString(a.host); ok {
-			z := strings.IndexByte(a.host, percentMark)
-			isIP = net.ParseIP(a.host[0:z]) != nil
+	return nil
+}
+
+// validateHost validates the host part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2
+func (a authorityInfo) validateHost(host string, schemes ...string) error {
+	var isIP bool
+	if ok := rexIPv6Zone.MatchString(host); ok {
+		z := strings.IndexByte(a.host, percentMark)
+		isIP = net.ParseIP(host[0:z]) != nil
+	} else {
+		isIP = net.ParseIP(host) != nil
+	}
+
+	if !isIP {
+		// this is not an IP, check for host DNS or registered name
+		if err := validateHostForScheme(a.host, schemes...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateHostForScheme validates the host according to 2 different sets of rules:
+//   - if the scheme is a scheme well-known for using DNS host names, the DNS host validation applies (RFC)
+//     (applies to schemes at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml)
+//   - otherwise, applies the "registered-name" validation stated by RFC 3986:
+//
+// dns-name see: https://www.rfc-editor.org/rfc/rfc1034, https://www.rfc-editor.org/info/rfc5890
+// reg-name    = *( unreserved / pct-encoded / sub-delims )
+func validateHostForScheme(host string, schemes ...string) error {
+	var isHost bool
+	unescapedHost, err := url.PathUnescape(host)
+	if err != nil {
+		return ErrInvalidHost
+	}
+
+	for _, scheme := range schemes {
+		if UsesDNSHostValidation(scheme) {
+			// DNS name
+			isHost = rexHostname.MatchString(unescapedHost)
 		} else {
-			isIP = net.ParseIP(a.host) != nil
+			// standard RFC 3986
+			isHost = rexRegname.MatchString(unescapedHost)
 		}
-		if !isIP {
-			var isHost bool
-			unescapedHost, err := url.PathUnescape(a.host)
-			if err != nil {
-				return ErrInvalidHost
-			}
-			for _, scheme := range schemes {
-				if UsesDNSHostValidation(scheme) {
-					// DNS name
-					isHost = rexHostname.MatchString(unescapedHost)
-				} else {
-					// standard RFC 3986
-					isHost = rexRegname.MatchString(unescapedHost)
-				}
-				if !isHost {
-					return ErrInvalidHost
-				}
-			}
+
+		if !isHost {
+			return ErrInvalidHost
 		}
 	}
 
-	if a.port != "" {
-		if !isNumerical(a.port) {
-			return ErrInvalidPort
-		}
-		if a.host == "" {
-			return ErrMissingHost
-		}
+	return nil
+}
+
+// validatePort validates the port part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.3
+//
+// port = *DIGIT
+func (a authorityInfo) validatePort(port, host string) error {
+	if !isNumerical(port) {
+		return ErrInvalidPort
 	}
 
-	if a.userinfo != "" {
-		if ok := rexUserInfo.MatchString(a.userinfo); !ok {
-			return ErrInvalidUserInfo
-		}
+	if host == "" {
+		return ErrMissingHost
+	}
+
+	return nil
+}
+
+// validateUserInfo validates the userinfo part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
+//
+// userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+func (a authorityInfo) validateUserInfo(userinfo string) error {
+	if ok := rexUserInfo.MatchString(userinfo); !ok {
+		return ErrInvalidUserInfo
 	}
 
 	return nil
