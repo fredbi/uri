@@ -13,107 +13,11 @@
 package uri
 
 import (
-	"errors"
 	"net"
 	"net/url"
 	"regexp"
 	"strings"
 )
-
-// Validation errors.
-var (
-	ErrNoSchemeFound    = errors.New("no scheme found in URI")
-	ErrInvalidURI       = errors.New("not a valid URI")
-	ErrInvalidCharacter = errors.New("invalid character in URI")
-	ErrInvalidScheme    = errors.New("invalid scheme in URI")
-	ErrInvalidQuery     = errors.New("invalid query string in URI")
-	ErrInvalidFragment  = errors.New("invalid fragment in URI")
-	ErrInvalidPath      = errors.New("invalid path in URI")
-	ErrInvalidHost      = errors.New("invalid host in URI")
-	ErrInvalidPort      = errors.New("invalid port in URI")
-	ErrInvalidUserInfo  = errors.New("invalid userinfo in URI")
-	ErrMissingHost      = errors.New("missing host in URI")
-)
-
-// UsesDNSHostValidation returns true if the provided scheme has host validation
-// that does not follow RFC3986 (which is quite generic), but assume a valid
-// DNS hostname instead.
-//
-// See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-func UsesDNSHostValidation(scheme string) bool {
-	switch scheme {
-	case "dns":
-		return true
-	case "dntp":
-		return true
-	case "finger":
-		return true
-	case "ftp":
-		return true
-	case "git":
-		return true
-	case "http":
-		return true
-	case "https":
-		return true
-	case "imap":
-		return true
-	case "irc":
-		return true
-	case "jms":
-		return true
-	case "mailto":
-		return true
-	case "nfs":
-		return true
-	case "nntp":
-		return true
-	case "ntp":
-		return true
-	case "postgres":
-		return true
-	case "redis":
-		return true
-	case "rmi":
-		return true
-	case "rtsp":
-		return true
-	case "rsync":
-		return true
-	case "sftp":
-		return true
-	case "skype":
-		return true
-	case "smtp":
-		return true
-	case "snmp":
-		return true
-	case "soap":
-		return true
-	case "ssh":
-		return true
-	case "steam":
-		return true
-	case "svn":
-		return true
-	case "tcp":
-		return true
-	case "telnet":
-		return true
-	case "udp":
-		return true
-	case "vnc":
-		return true
-	case "wais":
-		return true
-	case "ws":
-		return true
-	case "wss":
-		return true
-	}
-
-	return false
-}
 
 // URI represents a general RFC3986 URI.
 type URI interface {
@@ -152,21 +56,6 @@ type Authority interface {
 	Path() string
 	String() string
 	Validate(...string) error
-}
-
-// Builder builds URIs.
-type Builder interface {
-	URI() URI
-	SetScheme(scheme string) Builder
-	SetUserInfo(userinfo string) Builder
-	SetHost(host string) Builder
-	SetPort(port string) Builder
-	SetPath(path string) Builder
-	SetQuery(query string) Builder
-	SetFragment(fragment string) Builder
-
-	// Returns the URI this Builder represents.
-	String() string
 }
 
 const (
@@ -593,49 +482,6 @@ func (u *uri) ensureAuthorityExists() {
 		u.authority.port != "" {
 		u.authority.prefix = "//"
 	}
-}
-
-func (u *uri) SetScheme(scheme string) Builder {
-	u.scheme = scheme
-	return u
-}
-
-func (u *uri) SetUserInfo(userinfo string) Builder {
-	u.ensureAuthorityExists()
-	u.authority.userinfo = userinfo
-	return u
-}
-
-func (u *uri) SetHost(host string) Builder {
-	u.ensureAuthorityExists()
-	u.authority.host = host
-	return u
-}
-
-func (u *uri) SetPort(port string) Builder {
-	u.ensureAuthorityExists()
-	u.authority.port = port
-	return u
-}
-
-func (u *uri) SetPath(path string) Builder {
-	u.ensureAuthorityExists()
-	u.authority.path = path
-	return u
-}
-
-func (u *uri) SetQuery(query string) Builder {
-	u.query = query
-	return u
-}
-
-func (u *uri) SetFragment(fragment string) Builder {
-	u.fragment = fragment
-	return u
-}
-
-func (u *uri) Builder() Builder {
-	return u
 }
 
 func (u *uri) String() string {

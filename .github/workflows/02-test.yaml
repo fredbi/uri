@@ -11,12 +11,12 @@ jobs:
         os: [ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
-    
+
     steps:
     - uses: actions/checkout@v3
       with:
         persist-credentials: false
-    - uses: action/setup-go@v4
+    - uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go_version }}
         stable: true
