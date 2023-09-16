@@ -15,10 +15,11 @@ package uri
 import (
 	"errors"
 	"fmt"
-	"net"
+	"io"
+	"net/netip"
 	"net/url"
-	"regexp"
 	"strings"
+	"unicode"
 )
 
 // URI represents a general RFC3986 URI.
@@ -291,21 +292,6 @@ func (u *uri) Fragment() string {
 	return u.fragment
 }
 
-var (
-	rexScheme   = regexp.MustCompile(`^[\p{L}][\p{L}\d\+-\.]+$`)
-	rexFragment = regexp.MustCompile(`^([\p{L}\d\-\._~\:@!\$\&'\(\)\*\+,;=\?/]|(%[[:xdigit:]]{2})+)+$`)
-	rexQuery    = rexFragment
-	rexSegment  = regexp.MustCompile(`^([\p{L}\d\-\._~\:@!\$\&'\(\)\*\+,;=]|(%[[:xdigit:]]{2})+)+$`)
-	rexHostname = regexp.MustCompile(`^[a-zA-Z0-9\p{L}]((-?[a-zA-Z0-9\p{L}]+)?|(([a-zA-Z0-9-\p{L}]{0,63})(\.)){1,6}([a-zA-Z\p{L}]){2,})$`)
-
-	// unreserved | pct-encoded | sub-delims.
-	rexRegname = regexp.MustCompile(`^([\p{L}\d\-\._~!\$\&'\(\)\*\+,;=]|(%[[:xdigit:]]{2})+)+$`)
-	// unreserved | pct-encoded | sub-delims | ":".
-	rexUserInfo = regexp.MustCompile(`^([\p{L}\d\-\._~\:!\$\&'\(\)\*\+,;=\?/]|(%[[:xdigit:]]{2})+)+$`)
-
-	rexIPv6Zone = regexp.MustCompile(`:[^%:]+%25(([\p{L}\d\-\._~\:@!\$\&'\(\)\*\+,;=]|(%[[:xdigit:]]{2}))+)?$`)
-)
-
 func isNumerical(input string) bool {
 	return strings.IndexFunc(input,
 		func(r rune) bool { return r < '0' || r > '9' },
@@ -351,8 +337,22 @@ func (u *uri) Validate() error {
 // NOTE: scheme is not supposed to contain any percent-encoded sequence.
 // TODO(fredbi): verify the IRI RFC to check if unicode is allowed in scheme.
 func (u *uri) validateScheme(scheme string) error {
-	if ok := rexScheme.MatchString(scheme); !ok {
+	if len(scheme) < 2 {
 		return ErrInvalidScheme
+	}
+
+	for i, r := range scheme {
+		if i == 0 { // TODO: study alternative with strings.Reader and ReadRune
+			if !unicode.IsLetter(r) {
+				return ErrInvalidScheme
+			}
+
+			continue
+		}
+
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '+' && r != '-' && r != '.' {
+			return ErrInvalidScheme
+		}
 	}
 
 	return nil
@@ -365,8 +365,8 @@ func (u *uri) validateScheme(scheme string) error {
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
 //	query = *( pchar / "/" / "?" )
 func (u *uri) validateQuery(query string) error {
-	if ok := rexQuery.MatchString(query); !ok {
-		return ErrInvalidQuery
+	if err := validatePcharWithExtra(query, '/', '?'); err != nil {
+		return errors.Join(ErrInvalidQuery, err)
 	}
 
 	return nil
@@ -380,11 +380,75 @@ func (u *uri) validateQuery(query string) error {
 //
 // fragment    = *( pchar / "/" / "?" )
 func (u *uri) validateFragment(fragment string) error {
-	if ok := rexFragment.MatchString(fragment); !ok {
-		return ErrInvalidFragment
+	if err := validatePcharWithExtra(fragment, '/', '?'); err != nil {
+		return errors.Join(ErrInvalidQuery, err)
 	}
 
 	return nil
+}
+
+// pchar extra runes are ':' and '@'
+func validatePcharWithExtra(s string, acceptedRunes ...rune) error {
+	return validateUnreservedWithExtra(s, append(acceptedRunes, ':', '@')...)
+}
+
+func validateUnreservedWithExtra(s string, acceptedRunes ...rune) error {
+	skip := 0
+	for i, r := range s {
+		if skip > 0 {
+			skip--
+			continue
+		}
+
+		// accepts percent-encoded sequences
+		if r == '%' {
+			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+				return fmt.Errorf("part %q contains a malformed percent-encoded part near [%s...]", s, s[:i])
+			}
+
+			skip = 2
+
+			continue
+		}
+
+		// RFC grammar definitions:
+		// sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+		//               / "*" / "+" / "," / ";" / "="
+		// gen-delims  = ":" / "/" / "?" / "#" / "[" / "]" / "@"
+		// unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+		// pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) &&
+			// unreserved
+			r != '-' && r != '.' && r != '_' && r != '~' &&
+			// sub-delims
+			r != '!' && r != '$' && r != '&' && r != '\'' && r != '(' && r != ')' &&
+			r != '*' && r != '+' && r != ',' && r != ';' && r != '=' {
+			runeFound := false
+			for _, acceptedRune := range acceptedRunes {
+				if r == acceptedRune {
+					runeFound = true
+					break
+				}
+			}
+			if !runeFound {
+				return fmt.Errorf("%q contains an invalid character: '%U'", s, r)
+			}
+		}
+	}
+
+	return nil
+}
+
+func ishex(c byte) bool {
+	switch {
+	case '0' <= c && c <= '9':
+		return true
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+	}
+	return false
 }
 
 type authorityInfo struct {
@@ -393,6 +457,7 @@ type authorityInfo struct {
 	host     string
 	port     string
 	path     string
+	isIPv6   bool
 }
 
 func (a authorityInfo) UserInfo() string { return a.userinfo }
@@ -421,6 +486,7 @@ func (a authorityInfo) String() string {
 
 	buf.WriteString(a.port)
 	buf.WriteString(a.path)
+
 	return buf.String()
 }
 
@@ -435,7 +501,7 @@ func (a authorityInfo) Validate(schemes ...string) error {
 	}
 
 	if a.host != "" {
-		if err := a.validateHost(a.host, schemes...); err != nil {
+		if err := a.validateHost(a.host, a.isIPv6, schemes...); err != nil {
 			return err
 		}
 	}
@@ -459,12 +525,25 @@ func (a authorityInfo) Validate(schemes ...string) error {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.3
 func (a authorityInfo) validatePath(path string) error {
+	if a.host == "" && a.port == "" && len(path) >= 2 && path[0] == '/' && path[1] == '/' {
+		return errors.Join(
+			ErrInvalidPath,
+			fmt.Errorf(
+				`if a URI does not contain an authority component, then the path cannot begin with two slash characters ("//"): %q`,
+				a.path,
+			))
+	}
+
 	for _, segment := range strings.Split(path, "/") {
 		if segment == "" {
 			continue
 		}
-		if ok := rexSegment.MatchString(segment); !ok {
-			return ErrInvalidPath
+
+		if err := validatePcharWithExtra(segment); err != nil {
+			return errors.Join(
+				ErrInvalidPath,
+				err,
+			)
 		}
 	}
 
@@ -474,20 +553,67 @@ func (a authorityInfo) validatePath(path string) error {
 // validateHost validates the host part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2
-func (a authorityInfo) validateHost(host string, schemes ...string) error {
-	var isIP bool
-	if ok := rexIPv6Zone.MatchString(host); ok {
-		z := strings.IndexByte(a.host, percentMark)
-		isIP = net.ParseIP(host[0:z]) != nil
-	} else {
-		isIP = net.ParseIP(host) != nil
+func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string) error {
+	unescapedHost, err := url.PathUnescape(host)
+	if err != nil {
+		return errors.Join(
+			ErrInvalidHost,
+			fmt.Errorf("invalid percent-encoding in the host part"),
+		)
 	}
 
-	if !isIP {
-		// this is not an IP, check for host DNS or registered name
-		if err := validateHostForScheme(a.host, schemes...); err != nil {
-			return err
+	if isIPv6 {
+		// check for IPv6 address
+		// IPv6 may contain percent-encoded escaped characters
+		addr, err := netip.ParseAddr(unescapedHost)
+		if err != nil {
+			// RFC3986 stipulates that only IPv6 addresses are within square brackets
+			return errors.Join(
+				ErrInvalidHostAddress,
+				fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q", host),
+			)
 		}
+		if !addr.Is6() {
+			return errors.Join(
+				ErrInvalidHostAddress,
+				fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q", host),
+			)
+		}
+
+		return nil
+	}
+
+	// check for IPv4 address
+	// TODO: The host SHOULD check
+	// the string syntactically for a dotted-decimal number before
+	// looking it up in the Domain Name System.
+
+	// IPv4 may contain percent-encoded escaped characters, e.g. 192.168.0.%31 is valid.
+	// Reference: https://www.rfc-editor.org/rfc/rfc3986#appendix-A
+	//
+	//  IPv4address   = dec-octet "." dec-octet "." dec-octet "." dec-octet
+	//  dec-octet     = DIGIT                 ; 0-9
+	//    / %x31-39 DIGIT         ; 10-99
+	//    / "1" 2DIGIT            ; 100-199
+	//    / "2" %x30-34 DIGIT     ; 200-249
+	//    / "25" %x30-35          ; 250-255
+	if addr, err := netip.ParseAddr(unescapedHost); err == nil {
+		if !addr.Is4() {
+			return errors.Join(
+				ErrInvalidHostAddress,
+				fmt.Errorf("a host as an address, without square brackets, should refer to an IPv4 address: %q", host),
+			)
+		}
+
+		return nil
+	}
+
+	// this is not an IP, check for host DNS or registered name
+	if err := validateHostForScheme(host, unescapedHost, schemes...); err != nil {
+		return errors.Join(
+			ErrInvalidHost,
+			err,
+		)
 	}
 
 	return nil
@@ -500,24 +626,98 @@ func (a authorityInfo) validateHost(host string, schemes ...string) error {
 //
 // dns-name see: https://www.rfc-editor.org/rfc/rfc1034, https://www.rfc-editor.org/info/rfc5890
 // reg-name    = *( unreserved / pct-encoded / sub-delims )
-func validateHostForScheme(host string, schemes ...string) error {
-	var isHost bool
-	unescapedHost, err := url.PathUnescape(host)
-	if err != nil {
-		return ErrInvalidHost
-	}
-
+func validateHostForScheme(host, unescapedHost string, schemes ...string) error {
 	for _, scheme := range schemes {
 		if UsesDNSHostValidation(scheme) {
 			// DNS name
-			isHost = rexHostname.MatchString(unescapedHost)
-		} else {
-			// standard RFC 3986
-			isHost = rexRegname.MatchString(unescapedHost)
-		}
+			if len(unescapedHost) > 255 {
+				return errors.Join(
+					ErrInvalidDNSName,
+					fmt.Errorf("hostname is longer than the allowed 255 characters"),
+				)
+			}
 
-		if !isHost {
-			return ErrInvalidHost
+			/*
+			   <domain> ::= <subdomain> | " "
+			   <subdomain> ::= <label> | <subdomain> "." <label>
+			   <label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]
+			   <ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>
+			   <let-dig-hyp> ::= <let-dig> | "-"
+			   <let-dig> ::= <letter> | <digit>
+			   <letter> ::= any one of the 52 alphabetic characters A through Z in
+			   upper case and a through z in lower case
+			   <digit> ::= any one of the ten digits 0 through 9
+
+			*/
+			for _, segment := range strings.Split(unescapedHost, ".") {
+				if len(segment) == 0 {
+					return errors.Join(
+						ErrInvalidDNSName,
+						fmt.Errorf("a DNS name should not contain an empty segment"),
+					)
+				}
+				if len(segment) > 63 {
+					return errors.Join(
+						ErrInvalidDNSName,
+						fmt.Errorf("a segment in a DNS name should not be longer than 63 characters: %q", segment[:63]),
+					)
+				}
+				rr := strings.NewReader(segment)
+				r, _, err := rr.ReadRune()
+				if err != nil {
+					return errors.Join(
+						ErrInvalidDNSName,
+						fmt.Errorf("a segment in a DNS name contained an invalid rune: %q contains %q", segment, r),
+					)
+				}
+
+				if !unicode.IsLetter(r) {
+					return errors.Join(
+						ErrInvalidDNSName,
+						fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", segment, r),
+					)
+				}
+
+				var last rune
+				for {
+					r, _, err = rr.ReadRune()
+					if err != nil {
+						if errors.Is(err, io.EOF) {
+							break
+						}
+
+						return errors.Join(
+							ErrInvalidDNSName,
+							fmt.Errorf("a segment in a DNS name contained an invalid rune: %q: with %U", segment, r),
+						)
+					}
+
+					if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
+						return errors.Join(
+							ErrInvalidDNSName,
+							fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", segment, r),
+						)
+					}
+
+					last = r
+				}
+
+				// last rune in segment
+				if !unicode.IsLetter(last) && !unicode.IsDigit(last) {
+					return errors.Join(
+						ErrInvalidDNSName,
+						fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", segment, last),
+					)
+				}
+			}
+		} else {
+			// RFC 3986 registered name
+			if err := validateUnreservedWithExtra(host); err != nil {
+				return errors.Join(
+					ErrInvalidRegisteredName,
+					err,
+				)
+			}
 		}
 	}
 
@@ -535,7 +735,10 @@ func (a authorityInfo) validatePort(port, host string) error {
 	}
 
 	if host == "" {
-		return ErrMissingHost
+		return errors.Join(
+			ErrMissingHost,
+			fmt.Errorf("whenever a port is specified, a host part must be present"),
+		)
 	}
 
 	return nil
@@ -547,8 +750,11 @@ func (a authorityInfo) validatePort(port, host string) error {
 //
 // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
 func (a authorityInfo) validateUserInfo(userinfo string) error {
-	if ok := rexUserInfo.MatchString(userinfo); !ok {
-		return ErrInvalidUserInfo
+	if err := validateUnreservedWithExtra(userinfo, ':'); err != nil {
+		return errors.Join(
+			ErrInvalidUserInfo,
+			err,
+		)
 	}
 
 	return nil
@@ -557,6 +763,7 @@ func (a authorityInfo) validateUserInfo(userinfo string) error {
 func parseAuthority(hier string) (*authorityInfo, error) {
 	// as per RFC 3986 Section 3.6
 	var prefix, userinfo, host, port, path string
+	var isIPv6 bool
 
 	// authority sections MUST begin with a '//'
 	if strings.HasPrefix(hier, authorityPrefix) {
@@ -591,9 +798,11 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 			if closingbracket > bracket+1 {
 				host = host[bracket+1 : closingbracket]
 				rawHost = rawHost[closingbracket+1:]
+				isIPv6 = true
 			} else {
-				return nil, ErrInvalidURI
+				return nil, fmt.Errorf("mismatched square brackets")
 			}
+
 			if colon := strings.IndexByte(rawHost, colonMark); colon >= 0 {
 				if colon+1 < len(rawHost) {
 					port = rawHost[colon+1:]
@@ -613,6 +822,7 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 		prefix:   prefix,
 		userinfo: userinfo,
 		host:     host,
+		isIPv6:   isIPv6,
 		port:     port,
 		path:     path,
 	}, nil
@@ -632,6 +842,8 @@ func (u *uri) ensureAuthorityExists() {
 	}
 }
 
+// TODO: normalization?
+// * https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
 func (u *uri) String() string {
 	buf := strings.Builder{}
 	if len(u.scheme) > 0 {

@@ -10,7 +10,7 @@ import (
 func ExampleParse() {
 	u, err := uri.Parse("https://example.com:8080/path")
 	if err != nil {
-		fmt.Println("Invalid URI")
+		fmt.Println("Invalid URI:", err)
 	} else {
 		fmt.Println(u.String())
 	}
@@ -21,7 +21,7 @@ func ExampleParse() {
 func ExampleURI_Scheme() {
 	u, err := uri.Parse("https://example.com:8080/path")
 	if err != nil {
-		fmt.Println("Invalid URI")
+		fmt.Println("Invalid URI:", err)
 	} else {
 		fmt.Println(u.Scheme())
 	}
@@ -32,7 +32,7 @@ func ExampleURI_Scheme() {
 func ExampleURI_Authority() {
 	u, err := uri.Parse("ftp://example.com/path")
 	if err != nil {
-		fmt.Println("Invalid URI")
+		fmt.Println("Invalid URI:", err)
 	} else {
 		fmt.Println(u.Authority().Path())
 	}
@@ -43,7 +43,7 @@ func ExampleURI_Authority() {
 func ExampleAuthority_Path() {
 	u, err := uri.ParseReference("//example.com/path")
 	if err != nil {
-		fmt.Println("Invalid URI reference")
+		fmt.Println("Invalid URI reference:", err)
 	} else {
 		fmt.Println(u.Authority().Path())
 	}
@@ -55,7 +55,7 @@ func ExampleAuthority_Path() {
 func ExampleParseReference() {
 	u, err := uri.ParseReference("//example.com/path?a=1#fragment")
 	if err != nil {
-		fmt.Println("Invalid URI reference")
+		fmt.Println("Invalid URI reference:", err)
 	} else {
 		fmt.Println(u.Fragment())
 
