@@ -1,6 +1,11 @@
 package uri
 
-import "testing"
+import (
+	"fmt"
+	"io"
+	"net/url"
+	"testing"
+)
 
 func Benchmark_Parse(b *testing.B) {
 	tests := []string{
@@ -14,9 +19,45 @@ func Benchmark_Parse(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var v URI
 	for i := 0; i < b.N; i++ {
-		_, _ = Parse(tests[i%5])
+		v, _ = Parse(tests[i%len(tests)])
 	}
+	fmt.Fprintln(io.Discard, v)
+}
+
+func Benchmark_ParseURLAsURI(b *testing.B) {
+	tests := []string{
+		"http://httpbin.org/get?utf8=%e2%98%83",
+		"ssh://user@git.openstack.org:29418/openstack/keystone.git",
+		"https://willo.io/#yolo",
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var v URI
+	for i := 0; i < b.N; i++ {
+		v, _ = Parse(tests[i%len(tests)])
+	}
+	fmt.Fprintln(io.Discard, v)
+}
+
+func Benchmark_ParseURLStdLib(b *testing.B) {
+	tests := []string{
+		"http://httpbin.org/get?utf8=%e2%98%83",
+		"ssh://user@git.openstack.org:29418/openstack/keystone.git",
+		"https://willo.io/#yolo",
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var u *url.URL
+	for i := 0; i < b.N; i++ {
+		u, _ = url.Parse(tests[i%len(tests)])
+	}
+	fmt.Fprintln(io.Discard, u)
 }
 
 func Benchmark_String(b *testing.B) {
@@ -46,7 +87,9 @@ func Benchmark_String(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var s string
 	for i := 0; i < b.N; i++ {
-		_ = tests[i%5].String()
+		s = tests[i%5].String()
 	}
+	fmt.Fprintln(io.Discard, s)
 }

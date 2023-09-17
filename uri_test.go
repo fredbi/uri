@@ -259,7 +259,8 @@ func TestMoreURI(t *testing.T) {
 	}
 
 	validURIs := []string{
-		"http:////foo.html", // empty host, correct path (see issue#3)
+		"http:////foo.html",          // empty host
+		"http://host:8080//foo.html", // no empty authority, correct path (see issue#3)
 		"urn://example-bin.org/path",
 		"https://example-bin.org/path",
 		"https://example-bin.org/path?",
@@ -357,52 +358,42 @@ func Test_MoreParse(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidScheme)
 	})
 
+	t.Run("should detect a scheme too short", func(t *testing.T) {
+		_, err := Parse("x://bob")
+		assert.ErrorIs(t, err, ErrInvalidScheme)
+	})
+
 	t.Run("should parse without error", func(t *testing.T) {
-		_, err := Parse("http://www.example.org/hello/world.txt/?id=5&part=three#there-you-go")
-		assert.NoError(t, err)
+		for _, toPin := range []string{
+			"http://www.example.org/hello/world.txt/?id=5&part=three#there-you-go",
+			"http://www.example.org/hélloô/mötor/world.txt/?id=5&part=three#there-you-go",
+			"http://www.example.org/hello/yzx;=1.1/world.txt/?id=5&part=three#there-you-go",
+			"https://user:passwd@127.0.0.1:8080/a?query=value#fragment",
+			"http://www.詹姆斯.org/",
+			"file://c:/directory/filename",
+			"ldap://[2001:db8::7]/c=GB?objectClass?one",
+			"ldap://[2001:db8::7]:8080/c=GB?objectClass?one",
+			"https://user:passwd@[FF02:30:0:0:0:0:0:5%25]:8080/a?query=value#fragment", // empty zone: should be invalid TODO(fred)
+			"https://user:passwd@[FF02:30:0:0:0:0:0:5%25en0]:8080/a?query=value#fragment",
+			"https://user:passwd@[FF02:30:0:0:0:0:0:5%25lo]:8080/a?query=value#fragment",
+			"tel:+1-816-555-1212",
+			"http+unix:/%2Fvar%2Frun%2Fsocket/path?key=value",
+			"https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A]:8080/a?query=value#fragment",
+		} {
+			u := toPin
 
-		_, err = Parse("http://www.example.org/hélloô/mötor/world.txt/?id=5&part=three#there-you-go")
-		assert.NoError(t, err)
+			t.Run("parsing", func(t *testing.T) {
+				t.Parallel()
 
-		_, err = Parse("http://www.example.org/hello/yzx;=1.1/world.txt/?id=5&part=three#there-you-go")
-		assert.NoError(t, err)
-
-		_, err = Parse("https://user:passwd@127.0.0.1:8080/a?query=value#fragment")
-		assert.NoError(t, err)
-
-		_, err = Parse("http://www.詹姆斯.org/")
-		assert.NoError(t, err)
-
-		_, err = Parse("file://c:/directory/filename")
-		assert.NoError(t, err)
-
-		_, err = Parse("ldap://[2001:db8::7]/c=GB?objectClass?one")
-		assert.NoError(t, err)
-
-		_, err = Parse("ldap://[2001:db8::7]:8080/c=GB?objectClass?one")
-		assert.NoError(t, err)
-
-		_, err = Parse("https://user:passwd@[FF02:30:0:0:0:0:0:5%25]:8080/a?query=value#fragment")
-		assert.NoError(t, err)
-
-		_, err = Parse("https://user:passwd@[FF02:30:0:0:0:0:0:5%25en0]:8080/a?query=value#fragment")
-		assert.NoError(t, err)
-
-		_, err = Parse("https://user:passwd@[FF02:30:0:0:0:0:0:5%25lo]:8080/a?query=value#fragment")
-		assert.NoError(t, err)
-
-		_, err = Parse("tel:+1-816-555-1212")
-		assert.NoError(t, err)
-
-		_, err = Parse("http+unix:/%2Fvar%2Frun%2Fsocket/path?key=value")
-		assert.NoError(t, err)
-
-		_, err = Parse("https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A]:8080/a?query=value#fragment")
-		assert.NoError(t, err)
+				_, err := Parse(u)
+				assert.NoErrorf(t, err, "expected URI %q to parse, got %v", u, err)
+			})
+		}
 	})
 
 	t.Run("should detect an invalid query", func(t *testing.T) {
-		u, err := Parse("http://www.example.org/hello/world.txt/?id=5&pa{}rt=three#there-you-go")
+		u := "http://www.example.org/hello/world.txt/?id=5&pa{}rt=three#there-you-go"
+		_, err := Parse(u)
 		require.Errorf(t, err,
 			"expected the invalid { character in the query part to be caught as invalid: %q", u,
 		)
@@ -416,13 +407,14 @@ func Test_MoreParse(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidPath)
 	})
 
-	t.Run("should detect an invalid host", func(t *testing.T) {
+	t.Run("should detect an invalid host (DNS rule)", func(t *testing.T) {
 		_, err := Parse("https://user:passwd@286;0.0.1:8080/a?query=value#fragment")
 		assert.ErrorIs(t, err, ErrInvalidHost)
 
 		_, err = Parse("https://user:passwd@256.256.256.256:8080/a?query=value#fragment")
 		assert.ErrorIs(t, err, ErrInvalidHost)
 
+		// FAIL but is it legit? TODO(fred)
 		_, err = Parse("http+unix://%2Fvar%2Frun%2Fsocket/path?key=value") // no authority => no "//"
 		assert.ErrorIs(t, err, ErrInvalidHost)
 	})
@@ -531,55 +523,65 @@ func Test_MoreParse(t *testing.T) {
 func Test_Edge(t *testing.T) {
 	t.Parallel()
 
-	t.Run("with scheme only", func(t *testing.T) {
-		u, err := Parse("https:")
-		require.NoError(t, err)
-		assert.Equal(t, "https", u.Scheme())
-	})
+	t.Run("testing edge cases", func(t *testing.T) {
+		t.Run("with scheme only", func(t *testing.T) {
+			u, err := Parse("https:")
+			require.NoError(t, err)
+			assert.Equal(t, "https", u.Scheme())
+		})
 
-	t.Run("should detect invalid scheme", func(t *testing.T) {
-		_, err := Parse("ht?tps:")
-		require.Error(t, err)
-	})
+		t.Run("should detect invalid scheme", func(t *testing.T) {
+			_, err := Parse("ht?tps:")
+			require.Error(t, err)
+		})
 
-	t.Run("should parse IPv6 host", func(t *testing.T) {
-		u, err := Parse("https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25]:8080/a?query=value#fragment")
-		require.NoError(t, err)
+		t.Run("should parse IPv6 host with zone", func(t *testing.T) {
+			u, err := Parse("https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25lo]:8080/a?query=value#fragment")
+			require.NoError(t, err)
 
-		assert.Equal(t, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25", u.Authority().Host())
-	})
+			assert.Equal(t, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25lo", u.Authority().Host())
+		})
 
-	t.Run("should parse user/password, IPv6 percent-encoded host", func(t *testing.T) {
-		u, err := Parse("https://user:passwd@[::1%25lo]:8080/a?query=value#fragment")
-		require.NoError(t, err)
+		t.Run("should parse IPv6 host with empty zone", func(t *testing.T) {
+			u, err := Parse("https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25]:8080/a?query=value#fragment")
+			require.NoError(t, err) // TODO: actually not legit
 
-		assert.Equal(t, "https", u.Scheme())
-		assert.Equal(t, "8080", u.Authority().Port())
-		assert.Equal(t, "user:passwd", u.Authority().UserInfo())
-	})
+			assert.Equal(t, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25", u.Authority().Host())
+		})
 
-	t.Run("should error on empty host", func(t *testing.T) {
-		_, err := Parse("https://user:passwd@:8080/a?query=value#fragment")
-		require.ErrorIs(t, err, ErrMissingHost)
-	})
+		t.Run("should parse user/password, IPv6 percent-encoded host with zone", func(t *testing.T) {
+			u, err := Parse("https://user:passwd@[::1%25lo]:8080/a?query=value#fragment")
+			require.NoError(t, err)
 
-	t.Run("percent encoded host", func(t *testing.T) {
-		_, err := Parse("urn://user:passwd@ex%7Cample.com:8080/a?query=value#fragment")
-		require.Errorf(t, err,
-			"expected uri with percent-encoded host to be invalid",
-		)
+			assert.Equal(t, "https", u.Scheme())
+			assert.Equal(t, "8080", u.Authority().Port())
+			assert.Equal(t, "user:passwd", u.Authority().UserInfo())
+		})
 
-		u, err := Parse("urn://user:passwd@ex%2Dample.com:8080/a?query=value#fragment")
-		require.NoErrorf(t, err,
-			"expected uri with percent-encoded host to be valid",
-		)
-		assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
-	})
+		t.Run("should error on empty host", func(t *testing.T) {
+			_, err := Parse("https://user:passwd@:8080/a?query=value#fragment")
+			require.ErrorIs(t, err, ErrMissingHost)
+		})
 
-	t.Run("check percent encoding with DNS hostname", func(t *testing.T) {
-		u, err := Parse("https://user:passwd@ex%2Dample.com:8080/a?query=value#fragment")
-		require.NoErrorf(t, err, "expected uri with percent-encoded host to be valid")
-		assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
+		t.Run("percent encoded host", func(t *testing.T) {
+			_, err := Parse("urn://user:passwd@ex%7Cample.com:8080/a?query=value#fragment")
+			require.Errorf(t, err,
+				// "expected uri with percent-encoded host to valid, even if the decoded character is not a valid one" TODO(fred)
+				"expected uri with percent-encoded host to be invalid",
+			)
+
+			u, err := Parse("urn://user:passwd@ex%2Dample.com:8080/a?query=value#fragment")
+			require.NoErrorf(t, err,
+				"expected uri with percent-encoded host to be valid, (dash character is allowed in registered name)",
+			)
+			assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
+		})
+
+		t.Run("check percent encoding with DNS hostname", func(t *testing.T) {
+			u, err := Parse("https://user:passwd@ex%2Dample.com:8080/a?query=value#fragment")
+			require.NoErrorf(t, err, "expected uri with percent-encoded host to be valid, dash allowed in DNS name")
+			assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
+		})
 	})
 }
 
@@ -696,6 +698,7 @@ func parseRequestURLTests() []urlTest {
 		{"http://foo.com", true, true},
 		{"http://foo.com/", true, true},
 		{"http://foo.com/path", true, true},
+		// not an URI but a valid reference
 		{"/", false, true},
 		{pathThatLooksSchemeRelative, false, true},
 		{"//not.a.user@%66%6f%6f.com/just/a/path/also", false, true},
