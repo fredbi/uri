@@ -473,8 +473,7 @@ func (a authorityInfo) String() string {
 		buf.WriteByte(atHost)
 	}
 
-	if strings.IndexByte(a.host, colonMark) > 0 {
-		// ipv6 address host
+	if a.isIPv6 {
 		buf.WriteString("[" + a.host + "]")
 	} else {
 		buf.WriteString(a.host)
