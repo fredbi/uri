@@ -335,6 +335,7 @@ func (u *uri) Validate() error {
 //	scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 //
 // NOTE: scheme is not supposed to contain any percent-encoded sequence.
+//
 // TODO(fredbi): verify the IRI RFC to check if unicode is allowed in scheme.
 func (u *uri) validateScheme(scheme string) error {
 	if len(scheme) < 2 {
@@ -342,7 +343,7 @@ func (u *uri) validateScheme(scheme string) error {
 	}
 
 	for i, r := range scheme {
-		if i == 0 { // TODO: study alternative with strings.Reader and ReadRune
+		if i == 0 {
 			if !unicode.IsLetter(r) {
 				return ErrInvalidScheme
 			}
@@ -583,7 +584,8 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 	}
 
 	// check for IPv4 address
-	// TODO: The host SHOULD check
+	//
+	// The host SHOULD check
 	// the string syntactically for a dotted-decimal number before
 	// looking it up in the Domain Name System.
 
@@ -664,6 +666,8 @@ func validateHostForScheme(host, unescapedHost string, schemes ...string) error 
 				rr := strings.NewReader(segment)
 				r, _, err := rr.ReadRune()
 				if err != nil {
+					// strings.RuneReader doesn't actually return any other error than io.EOF,
+					// which is not supposed to happen given the above check on length.
 					return errors.Join(
 						ErrInvalidDNSName,
 						fmt.Errorf("a segment in a DNS name contained an invalid rune: %q contains %q", segment, r),
@@ -685,6 +689,7 @@ func validateHostForScheme(host, unescapedHost string, schemes ...string) error 
 							break
 						}
 
+						// strings.RuneReader doesn't actually return any other error than io.EOF
 						return errors.Join(
 							ErrInvalidDNSName,
 							fmt.Errorf("a segment in a DNS name contained an invalid rune: %q: with %U", segment, r),
@@ -841,7 +846,8 @@ func (u *uri) ensureAuthorityExists() {
 	}
 }
 
-// TODO: normalization?
+// String representation of an URI.
+//
 // * https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
 func (u *uri) String() string {
 	buf := strings.Builder{}
