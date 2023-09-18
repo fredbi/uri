@@ -3,6 +3,7 @@
 ![CI](https://github.com/fredbi/uri/actions/workflows/02-test.yaml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/fredbi/uri/badge.svg?branch=master)](https://coveralls.io/github/fredbi/uri?branch=master)
 ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/fredbi/uri)
+![Vulnerability Check](https://github.com/fredbi/uri/actions/workflows/03-govulncheck.yaml/badge.svg)
 [![Go Reference](https://pkg.go.dev/badge/github.com/fredbi/uri.svg)](https://pkg.go.dev/github.com/fredbi/uri)
 [![license](http://img.shields.io/badge/license/License-MIT-yellow.svg)](https://raw.githubusercontent.com/fredbi/uri/master/LICENSE.md)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fredbi/uri)](https://goreportcard.com/report/github.com/fredbi/uri)
@@ -38,7 +39,7 @@ which provides a workable but loose implementation of the RFC for URLs.
 	// Output: /path
 ```
 
-### Validation
+### Validating
 
 ```go
     isValid := IsURI("urn://example.com?query=x#fragment/path") // true
@@ -82,8 +83,9 @@ The librarian's corner (WIP).
 | Internationalized Resource Identifier (IRI) | [RFC3987](https://tools.ietf.org/html/rfc3987)| |
 | IPv6 addressing scheme reference and erratum|||
 | Representing IPv6 Zone Identifiers| [RFC6874](https://www.rfc-editor.org/rfc/rfc6874.txt)|||
-| - https://tools.ietf.org/html/rfc6874 |||
-| - https://www.rfc-editor.org/rfc/rfc3513 |||
+| https://tools.ietf.org/html/rfc6874 |||
+| https://www.rfc-editor.org/rfc/rfc3513 |||
+|----------------------------------|----------------------------------------------------|----------|
 
 ## Disclaimer
 
