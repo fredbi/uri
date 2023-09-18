@@ -7,57 +7,83 @@ import (
 	"testing"
 )
 
+type payload struct {
+	name    string
+	comment string
+	tests   []string
+}
+
+func payloads() []payload {
+	return []payload{
+		{
+			name:    "simple payload",
+			comment: "a payload with vanilla URIs, no IPs, no escaped content",
+			tests: []string{
+				"foo://example.com:8042/over/there?name=ferret#nose",
+				"mailto://user@domain.com",
+				"ssh://user@git.openstack.org:29418/openstack/keystone.git",
+				"https://willo.io/#yolo",
+			},
+		},
+		{
+			name:    "mixed payload",
+			comment: "a payload with vanilla URIs, with 20% containing escaped content",
+			tests: []string{
+				"foo://example.com:8042/over/there?name=ferret#nose",
+				"mailto://user@domain.com",
+				"ssh://user@git.openstack.org:29418/openstack/keystone.git",
+				"https://willo.io/#yolo",
+				"http://httpbin.org/get?utf8=%e2%98%83",
+			},
+		},
+		{
+			name:    "payload with IPs",
+			comment: "a payload with ~ 30% with an IP host specification (v4 & v6)",
+			tests: []string{
+				"foo://example.com:8042/over/there?name=ferret#nose",
+				"http://httpbin.org/get?utf8=%e2%98%83",
+				"mailto://user@domain.com",
+				"ssh://user@git.openstack.org:29418/openstack/keystone.git",
+				"https://willo.io/#yolo",
+				"https://user:passwd@[FF02:30:0:0:0:0:0:5%25en1]:8080/a?query=value#fragment",
+				"https://user:passwd@127.0.0.1:8080/a?query=value#fragment",
+			},
+		},
+	}
+}
+
 func Benchmark_Parse(b *testing.B) {
-	tests := []string{
-		"foo://example.com:8042/over/there?name=ferret#nose",
-		"http://httpbin.org/get?utf8=%e2%98%83",
-		"mailto://user@domain.com",
-		"ssh://user@git.openstack.org:29418/openstack/keystone.git",
-		"https://willo.io/#yolo",
+	// URI.Parse() and net/url.URL.Parse() side by side on different payloads
+	for _, payload := range payloads() {
+		b.Run(fmt.Sprintf("with URI %s", payload.name), benchParseWithPayload(payload.tests))
+		b.Run(fmt.Sprintf("with URL %s", payload.name), benchParseURLStdLib(payload.tests))
 	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var v URI
-	for i := 0; i < b.N; i++ {
-		v, _ = Parse(tests[i%len(tests)])
-	}
-	fmt.Fprintln(io.Discard, v)
 }
 
-func Benchmark_ParseURLAsURI(b *testing.B) {
-	tests := []string{
-		"http://httpbin.org/get?utf8=%e2%98%83",
-		"ssh://user@git.openstack.org:29418/openstack/keystone.git",
-		"https://willo.io/#yolo",
-	}
+func benchParseWithPayload(payload []string) func(*testing.B) {
+	return func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var v URI
-	for i := 0; i < b.N; i++ {
-		v, _ = Parse(tests[i%len(tests)])
+		var v URI
+		for i := 0; i < b.N; i++ {
+			v, _ = Parse(payload[i%len(payload)])
+		}
+		fmt.Fprintln(io.Discard, v)
 	}
-	fmt.Fprintln(io.Discard, v)
 }
 
-func Benchmark_ParseURLStdLib(b *testing.B) {
-	tests := []string{
-		"http://httpbin.org/get?utf8=%e2%98%83",
-		"ssh://user@git.openstack.org:29418/openstack/keystone.git",
-		"https://willo.io/#yolo",
-	}
+func benchParseURLStdLib(payload []string) func(*testing.B) {
+	return func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var u *url.URL
-	for i := 0; i < b.N; i++ {
-		u, _ = url.Parse(tests[i%len(tests)])
+		var u *url.URL
+		for i := 0; i < b.N; i++ {
+			u, _ = url.Parse(payload[i%len(payload)])
+		}
+		fmt.Fprintln(io.Discard, u)
 	}
-	fmt.Fprintln(io.Discard, u)
 }
 
 func Benchmark_String(b *testing.B) {

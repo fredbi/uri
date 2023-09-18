@@ -181,6 +181,7 @@ func TestValidateHostForScheme(t *testing.T) {
 		"a.b.",
 		"a.1b",
 		"a.2",
+		"a.b.c..",
 		".",
 		"",
 		"www.詹姆斯.org/",
