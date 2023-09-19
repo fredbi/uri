@@ -382,7 +382,7 @@ func (u *uri) validateQuery(query string) error {
 // fragment    = *( pchar / "/" / "?" )
 func (u *uri) validateFragment(fragment string) error {
 	if err := validatePcharWithExtra(fragment, '/', '?'); err != nil {
-		return errors.Join(ErrInvalidQuery, err)
+		return errors.Join(ErrInvalidFragment, err)
 	}
 
 	return nil
@@ -799,12 +799,21 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 			// ipv6 addresses: "[" xx:yy:zz "]":port
 			rawHost := host
 			closingbracket := strings.IndexByte(host, closingBracketMark)
-			if closingbracket > bracket+1 {
+			switch {
+			case closingbracket > bracket+1:
 				host = host[bracket+1 : closingbracket]
 				rawHost = rawHost[closingbracket+1:]
 				isIPv6 = true
-			} else {
-				return nil, fmt.Errorf("mismatched square brackets")
+			case closingbracket > bracket:
+				return nil, errors.Join(
+					ErrInvalidHostAddress,
+					fmt.Errorf("empty IPv6 address"),
+				)
+			default:
+				return nil, errors.Join(
+					ErrInvalidHostAddress,
+					fmt.Errorf("mismatched square brackets"),
+				)
 			}
 
 			if colon := strings.IndexByte(rawHost, colonMark); colon >= 0 {

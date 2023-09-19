@@ -7,10 +7,10 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
-	allTests := rawParsePassTests()
-	allTests = append(allTests, rawParseFailTests()...)
-	for _, testCase := range allTests {
-		f.Add(testCase.uriRaw)
+	for _, generator := range allGenerators {
+		for _, testCase := range generator() {
+			f.Add(testCase.uriRaw)
+		}
 	}
 
 	f.Fuzz(func(t *testing.T, input string) {
