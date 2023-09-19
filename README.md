@@ -19,29 +19,30 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 ## What's new?
 
-###  master vs v1.0.0
+### v1.1.0
 
 **Build**
 
-* go.mod requires go1.20.x
-  (we use `errors.Join()``) [being discussed: perhaps we defer this for `go.19` users]
+* requires go1.19
 
 **Features**
 
 * Typed errors: parsing and validation now returns errors of type `uri.Error`,
   with a more accurate pinpointing of the error provided by the value.
-  Errors support the go1.20 addition to standard errors with `Join()` and `Cause()`
+  Errors support the go1.20 addition to standard errors with `Join()` and `Cause()`.
+  For go1.19, backward compatibility is ensured (errors.Join() is emulated).
 * DNS schemes can be overridden at the package level
 
 **Performances**
 
-* Significantly improved parsing speed by dropping usage of regular expressions and reducing allocations.
+* Significantly improved parsing speed by dropping usage of regular expressions and reducing allocations (~ x20 faster).
 
 **Fixes**
 
 * stricter compliance regarding paths beginning with a double '/'
 * stricter compliance regarding the length of DNS names and their segments
 * stricter compliance regarding IPv6 addresses with an empty zone
+* stricter compliance regarding IPv6 vs IPv4 litterals
 * an empty IPv6 litteral `[]` is invalid
 
 **Known open issues**
@@ -50,6 +51,8 @@ which provides a workable but loose implementation of the RFC for URLs.
 * IPv6 validation relies on the standard library and lacks strictness
 
 **Other**
+
+Major refactoring to enhance code readability, esp. for testing code.
 
 * Refactored validations
 * Refactored test suite
@@ -102,8 +105,9 @@ which provides a workable but loose implementation of the RFC for URLs.
 * **IPv6 validation** relies on IP parsing from the standard library. It is not super strict
   regarding the full-fledged IPv6 specification.
 
-* `URI vs URL`: every URL should be a URI, but the converse does not always hold. This module intends to perform
-  stricter validation than the pragmatic `net/url` standard library, which is currently about x2 faster.
+* **URI vs URL**: every URL should be a URI, but the converse does not always hold. This module intends to perform
+  stricter validation than the pragmatic standard library `net/url`, which currently remains about 30% faster.
+
 * **URI vs IRI**: at this moment, this module checks for URI, while supporting unicode letters as `ALPHA` tokens.
   This is not strictly compliant with the IRI specification (see known issues).
 
@@ -118,13 +122,13 @@ The exposed type `URI` can be transformed into a fluent `Builder` to set the par
 
 ### Canonicalization
 
-Not supported for now.
+Not supported for now (contemplated as a topic for V2).
 
 For URL normalization, see [PuerkitoBio/purell](https://github.com/PuerkitoBio/purell).
 
 ## Reference specifications
 
-The librarian's corner (WIP).
+The librarian's corner (still WIP).
 
 |Title|Reference|Notes|
 |---------------------------------------------|----------------------------------------------------|----------------|
@@ -142,6 +146,7 @@ The librarian's corner (WIP).
   Some improvements are needed to abide more strictly to IRIi's provisions for internationalization.
 
 (2) IP addresses:
+* Now validation is stricter regarding `[...]` litterals (which _must_ be IPv6) and ddd.ddd.ddd.ddd litterals (which _must_ be IPv4).
 * RFC3886 requires the 6 parts of the IPv6 to be present. This module tolerates common syntax, such as `[::]`.
   Notice that `[]` is illegal, although the golang IP parser equates this to `[::]` (zero value IP).
 * IPv6 zones are supported, with the '%' escaped as '%25'
