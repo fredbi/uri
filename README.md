@@ -89,9 +89,6 @@ The librarian's corner (WIP).
 
 ## Disclaimer
 
-Not supported:
-- provisions for "IPvFuture" are not implemented.
-
 Hostnames vs domain names:
 - a list of common schemes triggers the validation of hostname against domain name rules.
 

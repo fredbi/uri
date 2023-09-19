@@ -3,6 +3,7 @@ package uri
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -118,6 +119,79 @@ func TestValidateScheme(t *testing.T) {
 		u := &uri{}
 		require.Error(t, u.validateScheme("x"))
 	})
+}
+
+func TestValidatePath(t *testing.T) {
+	u := &authorityInfo{}
+	for _, path := range []string{
+		"/a/b/c",
+		"a",
+		"a/",
+		"a/b/",
+		"/",
+		"",
+		"www/詹姆斯/org/",
+		"a//b//",
+	} {
+		require.NoErrorf(t, u.validatePath(path),
+			"expected path %q to validate",
+			path,
+		)
+	}
+
+	for _, path := range []string{
+		"/a/b{/c",
+		"a{",
+		"a{/",
+		"a{/b/",
+		"/{",
+		"{",
+		"www/詹{姆斯/org/",
+	} {
+		require.Errorf(t, u.validatePath(path),
+			"expected path %q NOT to validate",
+			path,
+		)
+	}
+}
+
+func TestValidateHostForScheme(t *testing.T) {
+	for _, host := range []string{
+		"a.b.c",
+		"a",
+		"a.b1b",
+		"a.b2",
+		"a.b.c.d",
+		"a-b.c-d",
+		"www.詹姆斯.org",
+		"www.詹-姆斯.org",
+		fmt.Sprintf("a.%s.c", strings.Repeat("b", 63)),
+	} {
+		require.NoErrorf(t, validateHostForScheme(host, host, "http"),
+			"expected host %q to validate",
+			host,
+		)
+	}
+
+	for _, host := range []string{
+		"a.b.c|",
+		"a.b.c-",
+		"a-",
+		"a.",
+		"a.b.",
+		"a.1b",
+		"a.2",
+		".",
+		"",
+		"www.詹姆斯.org/",
+		"www.詹{姆}斯.org/",
+		fmt.Sprintf("a.%s.c", strings.Repeat("b", 64)),
+	} {
+		require.Errorf(t, validateHostForScheme(host, host, "http"),
+			"expected host %q NOT to validate",
+			host,
+		)
+	}
 }
 
 func testLoop(generator testGenerator) func(t *testing.T) {

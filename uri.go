@@ -403,7 +403,7 @@ func validateUnreservedWithExtra(s string, acceptedRunes ...rune) error {
 
 		// accepts percent-encoded sequences
 		if r == '%' {
-			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+			if i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2]) {
 				return fmt.Errorf("part %q contains a malformed percent-encoded part near [%s...]", s, s[:i])
 			}
 
@@ -432,7 +432,7 @@ func validateUnreservedWithExtra(s string, acceptedRunes ...rune) error {
 				}
 			}
 			if !runeFound {
-				return fmt.Errorf("%q contains an invalid character: '%U'", s, r)
+				return fmt.Errorf("%q contains an invalid character: '%U' (%q)", s, r, r)
 			}
 		}
 	}
@@ -440,7 +440,7 @@ func validateUnreservedWithExtra(s string, acceptedRunes ...rune) error {
 	return nil
 }
 
-func ishex(c byte) bool {
+func isHex[T byte | rune](c T) bool {
 	switch {
 	case '0' <= c && c <= '9':
 		return true
@@ -450,6 +450,56 @@ func ishex(c byte) bool {
 		return true
 	}
 	return false
+}
+
+// validateIPvFuture covers the special provision in the RFC for future IP scheme.
+// The passed argument removes the heading "v" character.
+//
+// Example: http://[v6.fe80::a_en1]
+//
+//	Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2
+//
+//	IPvFuture     = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
+func validateIPvFuture(address string) error {
+	rr := strings.NewReader(address)
+	var (
+		foundHexDigits, foundDot bool
+	)
+
+	for {
+		r, _, err := rr.ReadRune()
+		if err == io.EOF {
+			break
+		}
+
+		if r == '.' {
+			foundDot = true
+
+			break
+		}
+
+		if !isHex(r) {
+			return errors.New(
+				"invalid IP vFuture format: expect an hexadecimal version tag",
+			)
+		}
+
+		foundHexDigits = true
+	}
+
+	if !foundHexDigits || !foundDot {
+		return errors.New(
+			"invalid IP vFuture format: expect a '.' after an hexadecimal version tag",
+		)
+	}
+
+	if rr.Len() == 0 {
+		return errors.New("invalid IP vFuture format: expect a non-empty address after the version tag")
+	}
+
+	offset, _ := rr.Seek(0, io.SeekCurrent)
+
+	return validateUnreservedWithExtra(address[offset:], ':')
 }
 
 type authorityInfo struct {
@@ -563,24 +613,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 	}
 
 	if isIPv6 {
-		// check for IPv6 address
-		// IPv6 may contain percent-encoded escaped characters
-		addr, err := netip.ParseAddr(unescapedHost)
-		if err != nil {
-			// RFC3986 stipulates that only IPv6 addresses are within square brackets
-			return errors.Join(
-				ErrInvalidHostAddress,
-				fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q", host),
-			)
-		}
-		if !addr.Is6() {
-			return errors.Join(
-				ErrInvalidHostAddress,
-				fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q", host),
-			)
-		}
-
-		return nil
+		return validateIPv6(unescapedHost)
 	}
 
 	// check for IPv4 address
@@ -620,6 +653,40 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 	return nil
 }
 
+func validateIPv6(unescapedHost string) error {
+	// address the provision made in the RFC for a "IPvFuture"
+	if unescapedHost[0] == 'v' || unescapedHost[0] == 'V' {
+		if err := validateIPvFuture(unescapedHost[1:]); err != nil {
+			return errors.Join(
+				ErrInvalidHostAddress,
+				err,
+			)
+		}
+
+		return nil
+	}
+
+	// check for IPv6 address
+	// IPv6 may contain percent-encoded escaped characters
+	addr, err := netip.ParseAddr(unescapedHost)
+	if err != nil {
+		// RFC3986 stipulates that only IPv6 addresses are within square brackets
+		return errors.Join(
+			ErrInvalidHostAddress,
+			fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q", unescapedHost),
+		)
+	}
+
+	if !addr.Is6() {
+		return errors.Join(
+			ErrInvalidHostAddress,
+			fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q", unescapedHost),
+		)
+	}
+
+	return nil
+}
+
 // validateHostForScheme validates the host according to 2 different sets of rules:
 //   - if the scheme is a scheme well-known for using DNS host names, the DNS host validation applies (RFC)
 //     (applies to schemes at: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml)
@@ -630,99 +697,120 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 func validateHostForScheme(host, unescapedHost string, schemes ...string) error {
 	for _, scheme := range schemes {
 		if UsesDNSHostValidation(scheme) {
-			// DNS name
-			if len(unescapedHost) > 255 {
-				return errors.Join(
-					ErrInvalidDNSName,
-					fmt.Errorf("hostname is longer than the allowed 255 characters"),
-				)
-			}
-
-			/*
-			   <domain> ::= <subdomain> | " "
-			   <subdomain> ::= <label> | <subdomain> "." <label>
-			   <label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]
-			   <ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>
-			   <let-dig-hyp> ::= <let-dig> | "-"
-			   <let-dig> ::= <letter> | <digit>
-			   <letter> ::= any one of the 52 alphabetic characters A through Z in
-			   upper case and a through z in lower case
-			   <digit> ::= any one of the ten digits 0 through 9
-
-			*/
-			for _, segment := range strings.Split(unescapedHost, ".") {
-				if len(segment) == 0 {
-					return errors.Join(
-						ErrInvalidDNSName,
-						fmt.Errorf("a DNS name should not contain an empty segment"),
-					)
-				}
-				if len(segment) > 63 {
-					return errors.Join(
-						ErrInvalidDNSName,
-						fmt.Errorf("a segment in a DNS name should not be longer than 63 characters: %q", segment[:63]),
-					)
-				}
-				rr := strings.NewReader(segment)
-				r, _, err := rr.ReadRune()
-				if err != nil {
-					// strings.RuneReader doesn't actually return any other error than io.EOF,
-					// which is not supposed to happen given the above check on length.
-					return errors.Join(
-						ErrInvalidDNSName,
-						fmt.Errorf("a segment in a DNS name contained an invalid rune: %q contains %q", segment, r),
-					)
-				}
-
-				if !unicode.IsLetter(r) {
-					return errors.Join(
-						ErrInvalidDNSName,
-						fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", segment, r),
-					)
-				}
-
-				var last rune
-				for {
-					r, _, err = rr.ReadRune()
-					if err != nil {
-						if errors.Is(err, io.EOF) {
-							break
-						}
-
-						// strings.RuneReader doesn't actually return any other error than io.EOF
-						return errors.Join(
-							ErrInvalidDNSName,
-							fmt.Errorf("a segment in a DNS name contained an invalid rune: %q: with %U", segment, r),
-						)
-					}
-
-					if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
-						return errors.Join(
-							ErrInvalidDNSName,
-							fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", segment, r),
-						)
-					}
-
-					last = r
-				}
-
-				// last rune in segment
-				if !unicode.IsLetter(last) && !unicode.IsDigit(last) {
-					return errors.Join(
-						ErrInvalidDNSName,
-						fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", segment, last),
-					)
-				}
-			}
-		} else {
-			// RFC 3986 registered name
-			if err := validateUnreservedWithExtra(host); err != nil {
-				return errors.Join(
-					ErrInvalidRegisteredName,
-					err,
-				)
+			if err := validateDNSHostForScheme(unescapedHost); err != nil {
+				return err
 			}
 		}
+
+		if err := validateRegisteredHostForScheme(host); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateDNSHostForScheme(unescapedHost string) error {
+	// DNS name
+	if len(unescapedHost) > 255 {
+		return errors.Join(
+			ErrInvalidDNSName,
+			fmt.Errorf("hostname is longer than the allowed 255 characters"),
+		)
+	}
+
+	/*
+	   <domain> ::= <subdomain> | " "
+	   <subdomain> ::= <label> | <subdomain> "." <label>
+	   <label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]
+	   <ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>
+	   <let-dig-hyp> ::= <let-dig> | "-"
+	   <let-dig> ::= <letter> | <digit>
+	   <letter> ::= any one of the 52 alphabetic characters A through Z in
+	   upper case and a through z in lower case
+	   <digit> ::= any one of the ten digits 0 through 9
+
+	*/
+	for _, segment := range strings.Split(unescapedHost, ".") {
+		if len(segment) == 0 {
+			return errors.Join(
+				ErrInvalidDNSName,
+				fmt.Errorf("a DNS name should not contain an empty segment"),
+			)
+		}
+		if len(segment) > 63 {
+			return errors.Join(
+				ErrInvalidDNSName,
+				fmt.Errorf("a segment in a DNS name should not be longer than 63 characters: %q", segment[:63]),
+			)
+		}
+		rr := strings.NewReader(segment)
+		r, _, err := rr.ReadRune()
+		if err != nil {
+			// strings.RuneReader doesn't actually return any other error than io.EOF,
+			// which is not supposed to happen given the above check on length.
+			return errors.Join(
+				ErrInvalidDNSName,
+				fmt.Errorf("a segment in a DNS name contains an invalid rune: %q contains %q", segment, r),
+			)
+		}
+
+		if !unicode.IsLetter(r) {
+			return errors.Join(
+				ErrInvalidDNSName,
+				fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", segment, r),
+			)
+		}
+
+		var (
+			last rune
+			once bool
+		)
+
+		for {
+			r, _, err = rr.ReadRune()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+
+				// strings.RuneReader doesn't actually return any other error than io.EOF
+				return errors.Join(
+					ErrInvalidDNSName,
+					fmt.Errorf("a segment in a DNS name contains an invalid rune: %q: with %U", segment, r),
+				)
+			}
+			once = true
+
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
+				return errors.Join(
+					ErrInvalidDNSName,
+					fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", segment, r),
+				)
+			}
+
+			last = r
+		}
+
+		// last rune in segment
+		if once && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
+			return errors.Join(
+				ErrInvalidDNSName,
+				fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", segment, last),
+			)
+		}
+	}
+
+	return nil
+}
+
+func validateRegisteredHostForScheme(host string) error {
+	// RFC 3986 registered name
+	if err := validateUnreservedWithExtra(host); err != nil {
+		return errors.Join(
+			ErrInvalidRegisteredName,
+			err,
+		)
 	}
 
 	return nil
@@ -766,8 +854,10 @@ func (a authorityInfo) validateUserInfo(userinfo string) error {
 
 func parseAuthority(hier string) (*authorityInfo, error) {
 	// as per RFC 3986 Section 3.6
-	var prefix, userinfo, host, port, path string
-	var isIPv6 bool
+	var (
+		prefix, userinfo, host, port, path string
+		isIPv6                             bool
+	)
 
 	// authority sections MUST begin with a '//'
 	if strings.HasPrefix(hier, authorityPrefix) {

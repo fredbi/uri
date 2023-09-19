@@ -663,8 +663,14 @@ func rawParseIPHostTests() []uriTest {
 		},
 		{
 			comment: "empty IPv6",
-			uriRaw:  "scheme://user:passwd@[]/invalid",
+			uriRaw:  "scheme://user:passwd@[]/valid",
 			err:     ErrInvalidURI,
+		},
+		{
+			comment: "zero IPv6",
+			// this is valid according to
+			uriRaw: "scheme://user:passwd@[::]/valid",
+			//err:     ErrInvalidURI,
 		},
 		{
 			comment: "invalid IPv6 (lack closing bracket) (1)",
@@ -738,6 +744,35 @@ func rawParseIPHostTests() []uriTest {
 			asserter: func(t testing.TB, u URI) {
 				assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
 			},
+		},
+		// Just for fun: IPvFuture...
+		{
+			comment: "IPvFuture address",
+			uriRaw:  "http://[v6.fe80::a_en1]",
+		},
+		{
+			comment: "IPvFuture address",
+			uriRaw:  "http://[vFFF.fe80::a_en1]",
+		},
+		{
+			comment: "IPvFuture address (invalid version)",
+			uriRaw:  "http://[vZ.fe80::a_en1]",
+			err:     ErrInvalidHostAddress,
+		},
+		{
+			comment: "IPvFuture address (invalid version)",
+			uriRaw:  "http://[v]",
+			err:     ErrInvalidHostAddress,
+		},
+		{
+			comment: "IPvFuture address (empty address)",
+			uriRaw:  "http://[vB.]",
+			err:     ErrInvalidHostAddress,
+		},
+		{
+			comment: "IPvFuture address (invalid characters)",
+			uriRaw:  "http://[vAF.{}]",
+			err:     ErrInvalidHostAddress,
 		},
 	}
 }
