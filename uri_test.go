@@ -122,7 +122,7 @@ func TestValidateScheme(t *testing.T) {
 }
 
 func TestValidatePath(t *testing.T) {
-	u := &authorityInfo{}
+	u := authorityInfo{}
 	for _, path := range []string{
 		"/a/b/c",
 		"a",

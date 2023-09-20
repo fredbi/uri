@@ -70,10 +70,7 @@ func Test_Builder(t *testing.T) {
 		u, _ := Parse("http:")
 		b := u.Builder()
 
-		nu := (b.URI()).(*uri)
-		assert.Nil(t, nu.authority)
-
-		require.NotNil(t, u.Authority())
+		require.Empty(t, u.Authority())
 		assert.Equal(t, "", u.Authority().UserInfo())
 
 		b = b.SetUserInfo("user:pwd").SetHost("newdomain").SetPort("444")

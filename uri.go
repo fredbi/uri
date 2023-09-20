@@ -189,7 +189,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 
 	var (
 		hierPart, query, fragment string
-		authorityInfo             *authorityInfo
+		authorityInfo             authorityInfo
 		err                       error
 	)
 
@@ -266,7 +266,7 @@ type uri struct {
 	fragment string
 
 	// parsed components
-	authority *authorityInfo
+	authority authorityInfo
 }
 
 func (u *uri) URI() URI {
@@ -319,9 +319,7 @@ func (u *uri) Validate() error {
 	}
 
 	if u.hierPart != "" {
-		if u.authority != nil {
-			return u.Authority().Validate(u.scheme)
-		}
+		return u.Authority().Validate(u.scheme)
 	}
 
 	// empty hierpart case
@@ -713,6 +711,7 @@ func validateHostForScheme(host, unescapedHost string, schemes ...string) error 
 func validateDNSHostForScheme(unescapedHost string) error {
 	// DNS name
 	if len(unescapedHost) > 255 {
+		// warning: size in bytes, not in runes (existing bug, or is it really?) -- TODO(fredbi)
 		return errors.Join(
 			ErrInvalidDNSName,
 			fmt.Errorf("hostname is longer than the allowed 255 characters"),
@@ -777,7 +776,7 @@ func validateDNSHostForScheme(unescapedHost string) error {
 				// strings.RuneReader doesn't actually return any other error than io.EOF
 				return errors.Join(
 					ErrInvalidDNSName,
-					fmt.Errorf("a segment in a DNS name contains an invalid rune: %q: with %U", segment, r),
+					fmt.Errorf("a segment in a DNS name contains an invalid rune: %q: with %U (%q)", segment, r, r),
 				)
 			}
 			once = true
@@ -852,7 +851,7 @@ func (a authorityInfo) validateUserInfo(userinfo string) error {
 	return nil
 }
 
-func parseAuthority(hier string) (*authorityInfo, error) {
+func parseAuthority(hier string) (authorityInfo, error) {
 	// as per RFC 3986 Section 3.6
 	var (
 		prefix, userinfo, host, port, path string
@@ -886,7 +885,7 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 		}
 
 		if bracket := strings.IndexByte(host, openingBracketMark); bracket >= 0 {
-			// ipv6 addresses: "[" xx:yy:zz "]":port
+			// ipv6 addresses: "["xx:yy:zz"]":port
 			rawHost := host
 			closingbracket := strings.IndexByte(host, closingBracketMark)
 			switch {
@@ -895,12 +894,12 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 				rawHost = rawHost[closingbracket+1:]
 				isIPv6 = true
 			case closingbracket > bracket:
-				return nil, errors.Join(
+				return authorityInfo{}, errors.Join(
 					ErrInvalidHostAddress,
 					fmt.Errorf("empty IPv6 address"),
 				)
 			default:
-				return nil, errors.Join(
+				return authorityInfo{}, errors.Join(
 					ErrInvalidHostAddress,
 					fmt.Errorf("mismatched square brackets"),
 				)
@@ -921,7 +920,7 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 		}
 	}
 
-	return &authorityInfo{
+	return authorityInfo{
 		prefix:   prefix,
 		userinfo: userinfo,
 		host:     host,
@@ -932,12 +931,6 @@ func parseAuthority(hier string) (*authorityInfo, error) {
 }
 
 func (u *uri) ensureAuthorityExists() {
-	if u.authority == nil {
-		u.authority = &authorityInfo{}
-
-		return
-	}
-
 	if u.authority.userinfo != "" ||
 		u.authority.host != "" ||
 		u.authority.port != "" {

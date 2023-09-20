@@ -127,7 +127,7 @@ func rawParseStructureTests() []uriTest {
 				hierPart: "user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					path: "user@domain.com",
 				},
 			},
@@ -140,7 +140,7 @@ func rawParseStructureTests() []uriTest {
 				hierPart: "//user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "domain.com",
@@ -538,7 +538,7 @@ func rawParseIPHostTests() []uriTest {
 				hierPart: "//user@[fe80::1]",
 				query:    "",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "fe80::1",
@@ -868,7 +868,7 @@ func rawParsePassTests() []uriTest {
 				hierPart: "//example.com:8042/over/there",
 				query:    "name=ferret",
 				fragment: "nose",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "",
 					host:     "example.com",
@@ -885,7 +885,7 @@ func rawParsePassTests() []uriTest {
 				hierPart: "//httpbin.org/get",
 				query:    "utf8=%e2%98%83",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "",
 					host:     "httpbin.org",
@@ -902,7 +902,7 @@ func rawParsePassTests() []uriTest {
 				hierPart: "//user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "domain.com",
@@ -919,7 +919,7 @@ func rawParsePassTests() []uriTest {
 				hierPart: "//user@git.openstack.org:29418/openstack/keystone.git",
 				query:    "",
 				fragment: "",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "git.openstack.org",
@@ -936,7 +936,7 @@ func rawParsePassTests() []uriTest {
 				hierPart: "//willo.io/",
 				query:    "",
 				fragment: "yolo",
-				authority: &authorityInfo{
+				authority: authorityInfo{
 					prefix:   "//",
 					userinfo: "",
 					host:     "willo.io",
