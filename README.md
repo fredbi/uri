@@ -19,11 +19,12 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 ## What's new?
 
-### v1.1.0
+###  master vs v1.0.0
 
 **Build**
 
-* go.mod requires go1.20.x (we use `errors.Join()``)
+* go.mod requires go1.20.x
+  (we use `errors.Join()``) [being discussed: perhaps we defer this for `go.19` users]
 
 **Features**
 
@@ -34,7 +35,7 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 **Performances**
 
-* Significantly improved parsing speed by dropping usage of regular expressions
+* Significantly improved parsing speed by dropping usage of regular expressions and reducing allocations.
 
 **Fixes**
 
@@ -92,10 +93,11 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 * **Registered name vs DNS name**: RFC3986 defines a super-permissive "registered name" for hosts, for URIs
   not specifically related to an Internet name. Our validation performs a stricter host validation according
-  to DNS rules whenever the scheme is a well-known IANA-registered scheme (the function `UsesDNSHostValidation(string) bool` is customizable).
+  to DNS rules whenever the scheme is a well-known IANA-registered scheme
+  (the function `UsesDNSHostValidation(string) bool` is customizable).
 
 > Examples:
-> `* ftp://host`, `http://host` default to validating a proper DNS hostname.
+> `ftp://host`, `http://host` default to validating a proper DNS hostname.
 
 * **IPv6 validation** relies on IP parsing from the standard library. It is not super strict
   regarding the full-fledged IPv6 specification.
@@ -140,9 +142,9 @@ The librarian's corner (WIP).
   Some improvements are needed to abide more strictly to IRIi's provisions for internationalization.
 
 (2) IP addresses:
-  * RFC3886 requires the 6 parts of the IPv6 to be present. This module tolerates common syntax, such as `[::]`.
-    Notice that `[]` is illegal, although the golang IP parser equates this to `[::]` (zero value IP).
-  * IPv6 zones are supported, with the '%' escaped as '%25'
+* RFC3886 requires the 6 parts of the IPv6 to be present. This module tolerates common syntax, such as `[::]`.
+  Notice that `[]` is illegal, although the golang IP parser equates this to `[::]` (zero value IP).
+* IPv6 zones are supported, with the '%' escaped as '%25'
 
 ## [FAQ](docs/FAQ.md)
 
@@ -160,11 +162,11 @@ Perl, Python, Scala, .Net. and the Go url standard library.
 
 ## TODOs
 
-- [ ] Improve performance - we want to close the gap with `net/url.Parse()`, little by little ...
-- [ ] Support IRI `ucschar` as unreserved characters
-- [ ] Support IRI iprivate in query
-- [ ] Prepare v2. See [the proposal](docs/V2.md)
-- [ ] Revisit URI vs IRI support & strictness, possibly with options (V2?)
+- [] Support IRI `ucschar` as unreserved characters
+- [] Support IRI iprivate in query
+- [] Prepare v2. See [the proposal](docs/V2.md)
+- [] Revisit URI vs IRI support & strictness, possibly with options (V2?)
+- [] [Other investigations](./docs/TODO.md)
 
 ### Notes
 ```

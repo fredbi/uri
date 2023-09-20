@@ -112,5 +112,4 @@ Benchmark_Parse/with_URL_payload_with_IPs-4       	64658163	       538.2 ns/op	 
 Benchmark_String
 Benchmark_String-4                                	137858840	       261.5 ns/op	     142 B/op	       5 allocs/op
 ```
-PASS
 
