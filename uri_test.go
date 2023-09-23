@@ -24,10 +24,6 @@ type (
 	testGenerator func() []uriTest
 )
 
-// errSentinelTest is used in test cases for when we want to assert an error
-// but do not want to check specifically which error was returned.
-var errSentinelTest = Error(errors.New("test"))
-
 // TestParse exercises the parser that decomposes an URI string in parts.
 func TestParse(t *testing.T) {
 	t.Parallel()

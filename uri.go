@@ -126,7 +126,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 	}
 
 	if schemeEnd == 1 {
-		return nil, errors.Join(
+		return nil, errorsJoin(
 			ErrInvalidScheme,
 			fmt.Errorf("scheme has a minimum length of 2 characters"),
 		)
@@ -161,7 +161,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		}
 	case !withURIReference:
 		// scheme is required for URI
-		return nil, errors.Join(
+		return nil, errorsJoin(
 			ErrNoSchemeFound,
 			fmt.Errorf("for URI (not URI reference), the scheme is required"),
 		)
@@ -182,7 +182,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 
 		authorityInfo, err := parseAuthority(raw[curr:hierPartEnd])
 		if err != nil {
-			return nil, errors.Join(ErrInvalidURI, err)
+			return nil, errorsJoin(ErrInvalidURI, err)
 		}
 
 		u := &uri{
@@ -204,7 +204,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		hierPart = raw[curr:hierPartEnd]
 		authorityInfo, err = parseAuthority(hierPart)
 		if err != nil {
-			return nil, errors.Join(ErrInvalidURI, err)
+			return nil, errorsJoin(ErrInvalidURI, err)
 		}
 
 		if hierPartEnd+1 < len(raw) {
@@ -225,7 +225,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		hierPart = raw[curr:queryEnd]
 		authorityInfo, err = parseAuthority(hierPart)
 		if err != nil {
-			return nil, errors.Join(ErrInvalidURI, err)
+			return nil, errorsJoin(ErrInvalidURI, err)
 		}
 
 		u := &uri{
@@ -245,7 +245,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			hierPart = raw[curr:queryEnd]
 			authorityInfo, err = parseAuthority(hierPart)
 			if err != nil {
-				return nil, errors.Join(ErrInvalidURI, err)
+				return nil, errorsJoin(ErrInvalidURI, err)
 			}
 		}
 
@@ -372,7 +372,7 @@ func (u *uri) validateScheme(scheme string) error {
 //	query = *( pchar / "/" / "?" )
 func (u *uri) validateQuery(query string) error {
 	if err := validateUnreservedWithExtra(query, queryOrFragmentExtraRunes); err != nil {
-		return errors.Join(ErrInvalidQuery, err)
+		return errorsJoin(ErrInvalidQuery, err)
 	}
 
 	return nil
@@ -387,7 +387,7 @@ func (u *uri) validateQuery(query string) error {
 // fragment    = *( pchar / "/" / "?" )
 func (u *uri) validateFragment(fragment string) error {
 	if err := validateUnreservedWithExtra(fragment, queryOrFragmentExtraRunes); err != nil {
-		return errors.Join(ErrInvalidFragment, err)
+		return errorsJoin(ErrInvalidFragment, err)
 	}
 
 	return nil
@@ -576,7 +576,7 @@ func (a authorityInfo) Validate(schemes ...string) error {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.3
 func (a authorityInfo) validatePath(path string) error {
 	if a.host == "" && a.port == "" && len(path) >= 2 && path[0] == '/' && path[1] == '/' {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidPath,
 			fmt.Errorf(
 				`if a URI does not contain an authority component, then the path cannot begin with two slash characters ("//"): %q`,
@@ -596,7 +596,7 @@ func (a authorityInfo) validatePath(path string) error {
 
 		if pos > previousPos {
 			if err := validateUnreservedWithExtra(path[previousPos:pos], pcharExtraRunes); err != nil {
-				return errors.Join(
+				return errorsJoin(
 					ErrInvalidPath,
 					err,
 				)
@@ -608,7 +608,7 @@ func (a authorityInfo) validatePath(path string) error {
 
 	if previousPos < len(path) { // don't care if the last char was a separator
 		if err := validateUnreservedWithExtra(path[previousPos:], pcharExtraRunes); err != nil {
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidPath,
 				err,
 			)
@@ -629,7 +629,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 		var err error
 		unescapedHost, err = url.PathUnescape(host)
 		if err != nil {
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidHost,
 				fmt.Errorf("invalid percent-encoding in the host part"),
 			)
@@ -659,7 +659,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 	//    / "25" %x30-35          ; 250-255
 	if addr, err := netip.ParseAddr(unescapedHost); err == nil {
 		if !addr.Is4() {
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidHostAddress,
 				fmt.Errorf("a host as an address, without square brackets, should refer to an IPv4 address: %q", host),
 			)
@@ -670,7 +670,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 
 	// this is not an IP, check for host DNS or registered name
 	if err := validateHostForScheme(host, unescapedHost, schemes...); err != nil {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidHost,
 			err,
 		)
@@ -683,7 +683,7 @@ func validateIPv6(unescapedHost string) error {
 	// address the provision made in the RFC for a "IPvFuture"
 	if unescapedHost[0] == 'v' || unescapedHost[0] == 'V' {
 		if err := validateIPvFuture(unescapedHost[1:]); err != nil {
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidHostAddress,
 				err,
 			)
@@ -697,14 +697,14 @@ func validateIPv6(unescapedHost string) error {
 	addr, err := netip.ParseAddr(unescapedHost)
 	if err != nil {
 		// RFC3986 stipulates that only IPv6 addresses are within square brackets
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidHostAddress,
 			fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q", unescapedHost),
 		)
 	}
 
 	if !addr.Is6() {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidHostAddress,
 			fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q", unescapedHost),
 		)
@@ -740,7 +740,7 @@ func validateDNSHostForScheme(unescapedHost string) error {
 	// DNS name
 	if len(unescapedHost) > 255 {
 		// warning: size in bytes, not in runes (existing bug, or is it really?) -- TODO(fredbi)
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("hostname is longer than the allowed 255 characters"),
 		)
@@ -781,7 +781,7 @@ func validateDNSHostForScheme(unescapedHost string) error {
 func validateRegisteredHostForScheme(host string) error {
 	// RFC 3986 registered name
 	if err := validateUnreservedWithExtra(host, nil); err != nil {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidRegisteredName,
 			err,
 		)
@@ -792,14 +792,14 @@ func validateRegisteredHostForScheme(host string) error {
 
 func validateHostSegment(segment string) error {
 	if len(segment) == 0 {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a DNS name should not contain an empty segment"),
 		)
 	}
 
 	if len(segment) > 63 {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a segment in a DNS name should not be longer than 63 characters: %q", segment[:63]),
 		)
@@ -810,14 +810,14 @@ func validateHostSegment(segment string) error {
 	if err != nil {
 		// strings.RuneReader doesn't actually return any other error than io.EOF,
 		// which is not supposed to happen given the above check on length.
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a segment in a DNS name contains an invalid rune: %q contains %q", segment, r),
 		)
 	}
 
 	if !unicode.IsLetter(r) {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", segment, r),
 		)
@@ -836,7 +836,7 @@ func validateHostSegment(segment string) error {
 			}
 
 			// strings.RuneReader doesn't actually return any other error than io.EOF
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidDNSName,
 				fmt.Errorf("a segment in a DNS name contains an invalid rune: %q: with %U (%q)", segment, r, r),
 			)
@@ -844,7 +844,7 @@ func validateHostSegment(segment string) error {
 		once = true
 
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
-			return errors.Join(
+			return errorsJoin(
 				ErrInvalidDNSName,
 				fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", segment, r),
 			)
@@ -855,7 +855,7 @@ func validateHostSegment(segment string) error {
 
 	// last rune in segment
 	if once && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", segment, last),
 		)
@@ -875,7 +875,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 	}
 
 	if host == "" {
-		return errors.Join(
+		return errorsJoin(
 			ErrMissingHost,
 			fmt.Errorf("whenever a port is specified, a host part must be present"),
 		)
@@ -891,7 +891,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
 func (a authorityInfo) validateUserInfo(userinfo string) error {
 	if err := validateUnreservedWithExtra(userinfo, userInfoExtraRunes); err != nil {
-		return errors.Join(
+		return errorsJoin(
 			ErrInvalidUserInfo,
 			err,
 		)
@@ -943,12 +943,12 @@ func parseAuthority(hier string) (authorityInfo, error) {
 				rawHost = rawHost[closingbracket+1:]
 				isIPv6 = true
 			case closingbracket > bracket:
-				return authorityInfo{}, errors.Join(
+				return authorityInfo{}, errorsJoin(
 					ErrInvalidHostAddress,
 					fmt.Errorf("empty IPv6 address"),
 				)
 			default:
-				return authorityInfo{}, errors.Join(
+				return authorityInfo{}, errorsJoin(
 					ErrInvalidHostAddress,
 					fmt.Errorf("mismatched square brackets"),
 				)

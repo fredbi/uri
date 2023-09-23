@@ -1,6 +1,6 @@
 module github.com/fredbi/uri
 
-go 1.20
+go 1.19
 
 require (
 	github.com/pkg/profile v1.7.0
