@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   govulncheck:
-    name: lint
+    name: govulncheck
     runs-on: ubuntu-latest
     steps:
       - name: govulncheck
