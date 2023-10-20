@@ -50,6 +50,11 @@ type URI interface {
 	IsDefaultPort() bool
 	// Default port for this scheme
 	DefaultPort() int
+
+	// Normalize the string representation of this URI
+	Normalize(...NormalizeOption) (string, error)
+	// Normalized version of this URI
+	Normalized(...NormalizeOption) (URI, error)
 }
 
 // Authority information that a URI contains
