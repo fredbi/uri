@@ -387,7 +387,7 @@ func (u *uri) validateScheme(scheme string) error {
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
 //	query = *( pchar / "/" / "?" )
 func (u *uri) validateQuery(query string) error {
-	if err := validateUnreservedWithExtra(query, queryOrFragmentExtraRunes); err != nil {
+	if err := validateUnreservedWithExtra(query, isQueryOrFragmentExtraRune); err != nil {
 		return errorsJoin(ErrInvalidQuery, err)
 	}
 
@@ -402,7 +402,7 @@ func (u *uri) validateQuery(query string) error {
 //
 // fragment    = *( pchar / "/" / "?" )
 func (u *uri) validateFragment(fragment string) error {
-	if err := validateUnreservedWithExtra(fragment, queryOrFragmentExtraRunes); err != nil {
+	if err := validateUnreservedWithExtra(fragment, isQueryOrFragmentExtraRune); err != nil {
 		return errorsJoin(ErrInvalidFragment, err)
 	}
 
@@ -513,7 +513,7 @@ func (a authorityInfo) validatePath(path string) error {
 		}
 
 		if pos > previousPos {
-			if err := validateUnreservedWithExtra(path[previousPos:pos], pcharExtraRunes); err != nil {
+			if err := validateUnreservedWithExtra(path[previousPos:pos], isPcharExtraRune); err != nil {
 				return errorsJoin(
 					ErrInvalidPath,
 					err,
@@ -525,7 +525,7 @@ func (a authorityInfo) validatePath(path string) error {
 	}
 
 	if previousPos < len(path) { // don't care if the last char was a separator
-		if err := validateUnreservedWithExtra(path[previousPos:], pcharExtraRunes); err != nil {
+		if err := validateUnreservedWithExtra(path[previousPos:], isPcharExtraRune); err != nil {
 			return errorsJoin(
 				ErrInvalidPath,
 				err,
@@ -636,7 +636,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 //
 // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
 func (a authorityInfo) validateUserInfo(userinfo string) error {
-	if err := validateUnreservedWithExtra(userinfo, userInfoExtraRunes); err != nil {
+	if err := validateUnreservedWithExtra(userinfo, isUserInfoExtraRune); err != nil {
 		return errorsJoin(
 			ErrInvalidUserInfo,
 			err,
