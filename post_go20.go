@@ -2,8 +2,6 @@
 
 package uri
 
-// TODO: build tag should be go1.20
-
 import "errors"
 
 func newErr(msg string) error {

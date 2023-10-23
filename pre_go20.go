@@ -7,8 +7,6 @@ import (
 	"fmt"
 )
 
-// TODO: build tag should be go1.20
-
 var _ Error = &uriErr{}
 
 type uriErr struct {
