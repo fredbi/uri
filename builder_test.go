@@ -76,4 +76,15 @@ func Test_Builder(t *testing.T) {
 		b = b.SetUserInfo("user:pwd").SetHost("newdomain").SetPort("444")
 		assert.Equal(t, "http://user:pwd@newdomain:444", b.String())
 	})
+
+	t.Run("when overriding with an invalid value", func(t *testing.T) {
+		const uriRaw = "https://host:8080/a?query=value#fragment"
+
+		u, err := Parse(uriRaw)
+		require.NoError(t, err)
+		b := u.Builder()
+		b.SetPort("X8080")
+		auth := u.Authority()
+		require.Error(t, auth.Validate())
+	})
 }

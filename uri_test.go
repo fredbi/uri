@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -153,46 +152,6 @@ func TestValidatePath(t *testing.T) {
 	}
 }
 
-func TestValidateHostForScheme(t *testing.T) {
-	for _, host := range []string{
-		"a.b.c",
-		"a",
-		"a.b1b",
-		"a.b2",
-		"a.b.c.d",
-		"a-b.c-d",
-		"www.詹姆斯.org",
-		"www.詹-姆斯.org",
-		fmt.Sprintf("a.%s.c", strings.Repeat("b", 63)),
-	} {
-		require.NoErrorf(t, validateHostForScheme(host, host, "http"),
-			"expected host %q to validate",
-			host,
-		)
-	}
-
-	for _, host := range []string{
-		"a.b.c|",
-		"a.b.c-",
-		"a-",
-		"a.",
-		"a.b.",
-		"a.1b",
-		"a.2",
-		"a.b.c..",
-		".",
-		"",
-		"www.詹姆斯.org/",
-		"www.詹{姆}斯.org/",
-		fmt.Sprintf("a.%s.c", strings.Repeat("b", 64)),
-	} {
-		require.Errorf(t, validateHostForScheme(host, host, "http"),
-			"expected host %q NOT to validate",
-			host,
-		)
-	}
-}
-
 func testLoop(generator testGenerator) func(t *testing.T) {
 	// table-driven tests for IsURI, IsURIReference, Parse and ParseReference.
 	return func(t *testing.T) {
@@ -211,30 +170,32 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 				// parse string as a pure URI
 				actual, err := Parse(test.uriRaw)
 
-				// parse string as a URI reference
-				actualReference, errReference := ParseReference(test.uriRaw)
+				t.Run("with URI reference", func(t *testing.T) {
+					// parse string as a URI reference
+					actualReference, errReference := ParseReference(test.uriRaw)
 
-				if test.isReference {
-					if test.isNotURI {
-						require.Errorf(t, err, "expected URI not to be a valid URI reference (only edge cases)")
-					} else {
-						// usually, all URI's are also URI references,
-						// but there are some edge cases (e.g. empty string), marked as "isNotURI"
-						require.NoErrorf(t, errReference, "expected a URI to be a valid URI reference (exluding edge cases)")
+					if test.isReference {
+						if test.isNotURI {
+							require.Errorf(t, err, "expected URI not to be a valid URI reference (only edge cases)")
+						} else {
+							// usually, all URI's are also URI references,
+							// but there are some edge cases (e.g. empty string), marked as "isNotURI"
+							require.NoErrorf(t, errReference, "expected a URI to be a valid URI reference (exluding edge cases)")
+						}
+
+						// tests marked "isReference" are pure references that fail URI (i.e. not scheme)
+						require.Errorf(t, err, "expected a relative URI reference NOT to be a valid URI")
+
+						actual = actualReference
+						err = errReference
 					}
 
-					// tests marked "isReference" are pure references that fail URI (i.e. not scheme)
-					require.Errorf(t, err, "expected a relative URI reference NOT to be a valid URI")
-
-					actual = actualReference
-					err = errReference
-				}
-
-				if err == nil && errReference == nil {
-					assert.Equalf(t, actual, actualReference,
-						"expected Parse and ParseReference to yield the same result",
-					)
-				}
+					if err == nil && errReference == nil {
+						assert.Equalf(t, actual, actualReference,
+							"expected Parse and ParseReference to yield the same result",
+						)
+					}
+				})
 
 				if test.err != nil {
 					assertError(t, test.err, err)
@@ -247,27 +208,38 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 					test.asserter(t, actual)
 				}
 
-				assertIsURI(t, test.uriRaw, test.err != nil, test.isReference)
+				t.Run("assert IsURI", func(t *testing.T) {
+					assertIsURI(t, test.uriRaw, test.err != nil, test.isReference)
 
-				if test.uri != nil {
-					// we want to assert struct in-depth, otherwise no error is good enough
-					assertURI(t, test.uriRaw, test.uri, actual)
-				}
+					if test.uri != nil {
+						// we want to assert struct in-depth, otherwise no error is good enough
+						assertURI(t, test.uriRaw, test.uri, actual)
+					}
+				})
 
-				// for host provided as an IP address
 				auth := actual.Authority()
-				if auth.IsIP() {
+
+				t.Run("assert IP", func(t *testing.T) {
+					// for host provided as an IP address
 					addr := auth.IPAddr()
-					require.NotEmpty(t, addr)
+					if auth.IsIP() {
+						require.NotEmpty(t, addr)
 
-					host := auth.Host()
-					unescapedHost, _ := url.PathUnescape(host)
+						host := auth.Host()
+						unescapedHost, _ := url.PathUnescape(host)
 
-					stdIP, err := netip.ParseAddr(unescapedHost)
-					require.NoError(t, err)
+						stdIP, err := netip.ParseAddr(unescapedHost)
+						require.NoError(t, err)
 
-					require.Equal(t, stdIP.String(), addr.String())
-				}
+						require.Equal(t, stdIP.String(), addr.String())
+					} else {
+						require.Empty(t, addr)
+					}
+				})
+
+				t.Run("assert authority.Validate", func(t *testing.T) {
+					require.Nil(t, auth.Validate(actual.Scheme()))
+				})
 			})
 		}
 	}

@@ -175,3 +175,82 @@ Benchmark_Parse/with_URL_payload_with_IPs-16       	91104375	       375.0 ns/op	
 Benchmark_String
 Benchmark_String-16                                	177036651	       202.3 ns/op	     142 B/op	       5 allocs/op
 
+## After strict percent-encoding check
+
+ go test -bench . -benchtime 30s -run Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor
+Benchmark_Parse/with_URI_simple_payload-16         	100000000	       357.1 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       328.0 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload-16          	100000000	       364.7 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       308.8 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs-16       	93804240	       372.8 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs-16       	93061443	       374.6 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String-16                                	180403320	       199.9 ns/op	     142 B/op	       5 allocs/op
+
+
+# After strict percent-encoding check on host
+
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+Benchmark_Parse/with_URI_simple_payload-16         	99754600	       372.6 ns/op	     184 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       322.4 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	95170938	       382.0 ns/op	     185 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       302.0 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	94759651	       391.0 ns/op	     178 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	99072315	       370.1 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	178247580	       203.6 ns/op	     142 B/op	       5 allocs/op
+PASS
+
+# After rewrite with uriReader
+
+ go test -bench . -benchtime 30s -run Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse/with_URI_simple_payload-16         	79905368	       443.8 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       321.2 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload-16          	80434849	       452.9 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       304.9 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs-16       	77295976	       470.7 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs-16       	96785080	       369.1 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String-16                                	180658692	       197.4 ns/op	     142 B/op	       5 allocs/op
+PASS
+
+# After rewrite with RuneInString, no Reader
+
+go test -v -run Bench -benchtime 30s -bench Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+Benchmark_Parse/with_URI_simple_payload-16         	96128900	       382.7 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       315.5 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	90237321	       383.9 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       304.1 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	87819139	       401.3 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	98766901	       369.3 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	176733871	       202.6 ns/op	     142 B/op	       5 allocs/op
+PASS
+

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -553,6 +554,16 @@ func rawParseHostTests() []uriTest {
 			uriRaw:  "https://........./",
 			err:     ErrInvalidDNSName,
 		},
+		{
+			comment: "DNS segment ends with incomplete escape sequence",
+			uriRaw:  "https://x.y.com%/",
+			err:     ErrInvalidDNSName,
+		},
+		{
+			comment: "DNS segment contains an invalid rune",
+			uriRaw:  fmt.Sprintf("https://x.y.com%s/", string([]rune{utf8.RuneError})),
+			err:     ErrInvalidDNSName,
+		},
 	}
 }
 
@@ -623,9 +634,14 @@ func rawParseIPHostTests() []uriTest {
 			uriRaw:  "http://[fe80::1%25%65%6e%301-._~]:8080/",
 		},
 		{
-			// TODO: should fail (invalid UTF8 escape sequence)
+			comment: "IPv6 host with invalid percent-encoding in zone identifier",
+			uriRaw:  "http://[fe80::1%25%C3~]:8080/",
+			err:     ErrInvalidHostAddress,
+		},
+		{
 			comment: "IPv6 host with invalid percent-encoding in zone identifier",
 			uriRaw:  "http://[fe80::1%25%F3~]:8080/",
+			err:     ErrInvalidHostAddress,
 		},
 		{
 			comment: "IP v4 host (escaped) %31 is percent-encoded for '1'",
@@ -814,8 +830,16 @@ func rawParseIPHostTests() []uriTest {
 			uriRaw:  "http://[vAF.{}]",
 			err:     ErrInvalidHostAddress,
 		},
-		// TODO: start with %
-		// TODO: invalid percent-encoded UTF8 sequence in zone
+		{
+			comment: "IPvFuture address (invalid rune) (1)",
+			uriRaw:  fmt.Sprintf("http://[v6.fe80::a_en1%s]", string([]rune{utf8.RuneError})),
+			err:     ErrInvalidHostAddress,
+		},
+		{
+			comment: "IPvFuture address (invalid rune) (2)",
+			uriRaw:  fmt.Sprintf("http://[v6%s.fe80::a_en1]", string([]rune{utf8.RuneError})),
+			err:     ErrInvalidHostAddress,
+		},
 	}
 }
 
@@ -874,6 +898,11 @@ func rawParseQueryTests() []uriTest {
 			uriRaw:  "http://www.contoso.com/path???/file name",
 			err:     ErrInvalidQuery,
 		},
+		{
+			comment: "check percent encoding with query, incomplete escape sequence",
+			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value%#fragment",
+			err:     ErrInvalidQuery,
+		},
 	}
 }
 
@@ -895,6 +924,11 @@ func rawParseFragmentTests() []uriTest {
 		{
 			comment: "invalid fragment",
 			uriRaw:  "http://example.w3.org/legit#ill[egal",
+			err:     ErrInvalidFragment,
+		},
+		{
+			comment: "check percent encoding with fragment, incomplete escape sequence",
+			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value#fragment%",
 			err:     ErrInvalidFragment,
 		},
 	}
@@ -1166,19 +1200,23 @@ func rawParsePassTests() []uriTest {
 				assert.Equal(t, "user:passwd", u.Authority().UserInfo())
 			},
 		},
-		/* This is an invalid UTF8 sequence that SHOULD error, at least in the context of
-				Ref: https://url.spec.whatwg.org/#percent-encoded-bytes
+		// This is an invalid UTF8 sequence that SHOULD error, at least in the context of
+		// Ref: https://url.spec.whatwg.org/#percent-encoded-bytes
 		{
-			comment: "check percent encoding with DNS hostname, invalid escape sequence",
+			comment: "check percent encoding with DNS hostname, invalid escape sequence in host segment",
 			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
-			// err:     ErrInvalidDNSName,
+			err:     ErrInvalidDNSName,
 		},
 		{
-			comment: "check percent encoding with registered hostname, invalid escape sequence",
+			comment: "check percent encoding with registered hostname, invalid escape sequence in host segment",
 			uriRaw:  "tel://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
 			err:     ErrInvalidHost,
 		},
-		*/
+		{
+			comment: "check percent encoding with registered hostname, incomplete escape sequence in host segment",
+			uriRaw:  "https://user:passwd@ex%C3ample.com%:8080/a?query=value#fragment",
+			err:     ErrInvalidDNSName,
+		},
 	}
 }
 

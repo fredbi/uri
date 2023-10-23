@@ -21,6 +21,7 @@ var (
 	ErrInvalidHostAddress    = Error(newErr("invalid address for host"))
 	ErrInvalidRegisteredName = Error(newErr("invalid host (registered name)"))
 	ErrInvalidDNSName        = Error(newErr("invalid host (DNS name)"))
+	ErrInvalidEscaping       = Error(newErr("invalid percent-escaping sequence"))
 )
 
 type ipError uint8

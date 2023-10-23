@@ -3,14 +3,15 @@ package uri
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 )
 
 // IsIP indicates if the URI host was specified using an IP address (v4 or v6).
 func (a authorityInfo) IsIP() bool {
+	// IPvFuture won't parse as a netip.Addr
 	return a.isIPv4 || (a.isIPv6 && !a.isIPvFuture)
 }
 
@@ -20,7 +21,7 @@ func (a authorityInfo) IPAddr() netip.Addr {
 		return netip.Addr{}
 	}
 
-	unescapedHost, _ := url.PathUnescape(a.host)
+	unescapedHost, _ := url.PathUnescape(a.host) // TODO
 	addr, _ := netip.ParseAddr(unescapedHost)
 
 	return addr
@@ -183,18 +184,19 @@ func validateIPv6(host string) error {
 //
 //	IPvFuture     = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
 func validateIPvFuture(address string) error {
-	rr := strings.NewReader(address)
 	var (
+		offset                   int
 		foundHexDigits, foundDot bool
 	)
 
-	for {
-		r, _, err := rr.ReadRune()
-		if err == io.EOF {
-			break
+	for offset < len(address) {
+		r, size := utf8.DecodeRuneInString(address[offset:])
+		if r == utf8.RuneError {
+			return fmt.Errorf("invalid UTF8 rune near: %q", address[offset:])
 		}
+		offset += size
 
-		if r == '.' {
+		if r == dotSeparator {
 			foundDot = true
 
 			break
@@ -215,11 +217,9 @@ func validateIPvFuture(address string) error {
 		)
 	}
 
-	if rr.Len() == 0 {
+	if offset >= len(address) {
 		return errors.New("invalid IP vFuture format: expect a non-empty address after the version tag")
 	}
-
-	offset, _ := rr.Seek(0, io.SeekCurrent)
 
 	// TODO: wrong because IpvFuture is not escaped
 	return validateUnreservedWithExtra(address[offset:], userInfoExtraRunes)

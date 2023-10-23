@@ -19,6 +19,20 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 ## What's new?
 
+### master
+
+**Fixes**
+* stricter IP validation (do not support escaping, excepted for IPv6 zones)
+* stricter percent-escape validation: an escaped character **MUST** encode a valid UTF8 endpoint
+
+**Features**
+
+* feat: added IsIP() bool and IPAddr() netip.Addr methods
+
+**Performances**
+
+* perf: slight improvement. Now only 8-25% slower than net/url.Parse, depending on the workload
+
 ### v1.1.0
 
 **Build**
@@ -132,25 +146,26 @@ The librarian's corner (still WIP).
 
 |Title|Reference|Notes|
 |---------------------------------------------|----------------------------------------------------|----------------|
-| Uniform Resource Identifier (URI)           | [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)  | Deviations (1) |
+| Uniform Resource Identifier (URI)           | [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)  | Deviations (1)(3) |
 | Uniform Resource Locator (URL)              | [RFC1738](https://www.rfc-editor.org/info/rfc1738) | |
 | Relative URL                                | [RFC1808](https://www.rfc-editor.org/info/rfc1808) | |
 | Internationalized Resource Identifier (IRI) | [RFC3987](https://tools.ietf.org/html/rfc3987)     | (1) |
 | IPv6 addressing scheme reference and erratum|                                                    | (2) |
-| Representing IPv6 Zone Identifiers| [RFC6874](https://www.rfc-editor.org/rfc/rfc6874.txt) |      | |
-| https://tools.ietf.org/html/rfc6874         | ||
-| https://www.rfc-editor.org/rfc/rfc3513      | ||
-| |[URL WhatWG Living Standard](https://url.spec.whatwg.org/) ||
+| Representing IPv6 Zone Identifiers          | [RFC6874](https://www.rfc-editor.org/rfc/rfc6874.txt) |      | |
+| IPv6 Addressing architecture                |[RFC3513](https://www.rfc-editor.org/rfc/rfc3513.txt)   | |
+| Practical standardization guidelines        |[URL WhatWG Living Standard](https://url.spec.whatwg.org/) |(3)|
 
 (1) Deviations from the RFC:
 * Tokens: ALPHAs are tolerated to be Unicode Letter codepoints, DIGITs are tolerated to be Unicode Digit codepoints.
   Some improvements are needed to abide more strictly to IRIi's provisions for internationalization.
 
 (2) IP addresses:
-* Now validation is stricter regarding `[...]` litterals (which _must_ be IPv6) and ddd.ddd.ddd.ddd litterals (which _must_ be IPv4).
-* RFC3886 requires the 6 parts of the IPv6 to be present. This module tolerates common syntax, such as `[::]`.
-  Notice that `[]` is illegal, although the golang IP parser equates this to `[::]` (zero value IP).
+* `[...]` litterals _must_ be IPv6 and `ddd.ddd.ddd.ddd` litterals _must_ be IPv4.
+* Notice that `[]` is illegal, although the golang IP parser equates this to `[::]` (zero value IP).
 * IPv6 zones are supported, with the '%' escaped as '%25'
+
+(3) Percent-escape:
+* Escape sequences, e.g. `%hh` _must_ decode to valid UTF-8 runes.
 
 ## [FAQ](docs/FAQ.md)
 

@@ -13,9 +13,7 @@
 package uri
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"strings"
@@ -80,14 +78,21 @@ const (
 	slashMark          = '/'
 	openingBracketMark = '['
 	closingBracketMark = ']'
+	dotSeparator       = '.'
 	authorityPrefix    = "//"
+)
+
+const (
+	// DNS name constants
+	maxSegmentLength = 63
+	maxDomainLength  = 255
 )
 
 var (
 	// predefined sets of accecpted runes beyond the "unreserved" character set
-	pcharExtraRunes           = []rune{':', '@'} // pchar = unreserved | ':' | '@'
-	queryOrFragmentExtraRunes = append(pcharExtraRunes, '/', '?')
-	userInfoExtraRunes        = append(pcharExtraRunes, ':')
+	pcharExtraRunes           = []rune{colonMark, atHost} // pchar = unreserved | ':' | '@'
+	queryOrFragmentExtraRunes = append(pcharExtraRunes, slashMark, questionMark)
+	userInfoExtraRunes        = append(pcharExtraRunes, colonMark)
 )
 
 // IsURI tells if a URI is valid according to RFC3986/RFC397.
@@ -244,7 +249,11 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			query:     query,
 		}
 
-		return u, u.Validate()
+		if err = u.Validate(); err != nil {
+			return nil, err
+		}
+
+		return u, nil
 	}
 
 	if queryEnd > 0 {
@@ -306,18 +315,6 @@ func (u *uri) Query() url.Values {
 
 func (u *uri) Fragment() string {
 	return u.fragment
-}
-
-func isNotDigit[T rune | byte](r T) bool {
-	return r < '0' || r > '9'
-}
-
-func isDigit[T rune | byte](r T) bool {
-	return r >= '0' && r <= '9'
-}
-
-func isNumerical(input string) bool {
-	return strings.IndexFunc(input, isNotDigit[rune]) == -1
 }
 
 // Validate checks that all parts of a URI abide by allowed characters.
@@ -412,66 +409,6 @@ func (u *uri) validateFragment(fragment string) error {
 	return nil
 }
 
-func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
-	skip := 0
-	for i, r := range s {
-		if skip > 0 {
-			skip--
-			continue
-		}
-
-		// accepts percent-encoded sequences
-		if r == '%' {
-			// TODO: since this is not escaped, check the validity of the escape sequence
-			if i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2]) {
-				return fmt.Errorf("part %q contains a malformed percent-encoded part near [%s...]", s, s[:i])
-			}
-
-			skip = 2
-
-			continue
-		}
-
-		// RFC grammar definitions:
-		// sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
-		//               / "*" / "+" / "," / ";" / "="
-		// gen-delims  = ":" / "/" / "?" / "#" / "[" / "]" / "@"
-		// unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
-		// pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) &&
-			// unreserved
-			r != '-' && r != '.' && r != '_' && r != '~' &&
-			// sub-delims
-			r != '!' && r != '$' && r != '&' && r != '\'' && r != '(' && r != ')' &&
-			r != '*' && r != '+' && r != ',' && r != ';' && r != '=' {
-			runeFound := false
-			for _, acceptedRune := range acceptedRunes {
-				if r == acceptedRune {
-					runeFound = true
-					break
-				}
-			}
-			if !runeFound {
-				return fmt.Errorf("%q contains an invalid character: '%U' (%q)", s, r, r)
-			}
-		}
-	}
-
-	return nil
-}
-
-func isHex[T byte | rune](c T) bool {
-	switch {
-	case isDigit(c):
-		return true
-	case 'a' <= c && c <= 'f':
-		return true
-	case 'A' <= c && c <= 'F':
-		return true
-	}
-	return false
-}
-
 type authorityInfo struct {
 	prefix   string
 	userinfo string
@@ -560,7 +497,7 @@ func (a authorityInfo) validate(schemes ...string) (ipType, error) {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.3
 func (a authorityInfo) validatePath(path string) error {
-	if a.host == "" && a.port == "" && len(path) >= 2 && path[0] == '/' && path[1] == '/' {
+	if a.host == "" && a.port == "" && len(path) >= 2 && path[0] == slashMark && path[1] == slashMark {
 		return errorsJoin(
 			ErrInvalidPath,
 			fmt.Errorf(
@@ -569,13 +506,9 @@ func (a authorityInfo) validatePath(path string) error {
 			))
 	}
 
-	// NOTE: this loop used to be neatly written with strings.Split().
-	// However, analysis showed that constantly allocating the returned slice
-	// was a significant burden on the gc (at least when compared to the workload
-	// the rest of this module generates).
 	var previousPos int
 	for pos, char := range path {
-		if char != '/' {
+		if char != slashMark {
 			continue
 		}
 
@@ -620,7 +553,6 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 					err,
 				)
 			}
-			// IPvFuture won't parse as a netip.Addr
 
 			return ipType{isIPv6: true, isIPvFuture: true}, nil
 		}
@@ -632,9 +564,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 		return ipType{isIPv4: true}, nil
 	}
 
-	// this is not an IP, check for host DNS or registered name
-	//
-	// TODO: since this is not escaped, check the validity of the escape sequence
+	// This is not an IP: check for host DNS or registered name
 	if err := validateHostForScheme(host, schemes...); err != nil {
 		return ipType{}, errorsJoin(
 			ErrInvalidHost,
@@ -668,134 +598,12 @@ func validateHostForScheme(host string, schemes ...string) error {
 	return nil
 }
 
-func validateDNSHostForScheme(host string) error {
-	unescapedHost, err := url.PathUnescape(host)
-	if err != nil {
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("invalid host percent-escape sequence: %w", err),
-		)
-	}
-
-	// DNS name
-	if len(unescapedHost) > 255 {
-		// warning: size in bytes, not in runes (existing bug, or is it really?) -- TODO(fredbi)
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("hostname is longer than the allowed 255 characters"),
-		)
-	}
-
-	/*
-	   <domain> ::= <subdomain> | " "
-	   <subdomain> ::= <label> | <subdomain> "." <label>
-	   <label> ::= <letter> [ [ <ldh-str> ] <let-dig> ]
-	   <ldh-str> ::= <let-dig-hyp> | <let-dig-hyp> <ldh-str>
-	   <let-dig-hyp> ::= <let-dig> | "-"
-	   <let-dig> ::= <letter> | <digit>
-	   <letter> ::= any one of the 52 alphabetic characters A through Z in
-	   upper case and a through z in lower case
-	   <digit> ::= any one of the ten digits 0 through 9
-	*/
-
-	var previousPos int
-	for pos, char := range unescapedHost {
-		if char != '.' {
-			continue
-		}
-
-		if err := validateHostSegment(unescapedHost[previousPos:pos]); err != nil {
-			return err
-		}
-
-		previousPos = pos + 1
-	}
-
-	// previousPos necessarily <= len(unescapedHost)
-	// possible trailing separator: empty last segment. It matters here
-	return validateHostSegment(unescapedHost[previousPos:])
-}
-
 func validateRegisteredHostForScheme(host string) error {
 	// RFC 3986 registered name
 	if err := validateUnreservedWithExtra(host, nil); err != nil {
 		return errorsJoin(
 			ErrInvalidRegisteredName,
 			err,
-		)
-	}
-
-	return nil
-}
-
-func validateHostSegment(segment string) error {
-	if len(segment) == 0 {
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("a DNS name should not contain an empty segment"),
-		)
-	}
-
-	if len(segment) > 63 {
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name should not be longer than 63 characters: %q", segment[:63]),
-		)
-	}
-
-	rr := strings.NewReader(segment)
-	r, _, err := rr.ReadRune()
-	if err != nil {
-		// strings.RuneReader doesn't actually return any other error than io.EOF,
-		// which is not supposed to happen given the above check on length.
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name contains an invalid rune: %q contains %q", segment, r),
-		)
-	}
-
-	if !unicode.IsLetter(r) {
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", segment, r),
-		)
-	}
-
-	var (
-		last rune
-		once bool
-	)
-
-	for {
-		r, _, err = rr.ReadRune()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-
-			// strings.RuneReader doesn't actually return any other error than io.EOF
-			return errorsJoin(
-				ErrInvalidDNSName,
-				fmt.Errorf("a segment in a DNS name contains an invalid rune: %q: with %U (%q)", segment, r, r),
-			)
-		}
-		once = true
-
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
-			return errorsJoin(
-				ErrInvalidDNSName,
-				fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", segment, r),
-			)
-		}
-
-		last = r
-	}
-
-	// last rune in segment
-	if once && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
-		return errorsJoin(
-			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", segment, last),
 		)
 	}
 
@@ -921,7 +729,7 @@ func (u *uri) ensureAuthorityExists() {
 	if u.authority.userinfo != "" ||
 		u.authority.host != "" ||
 		u.authority.port != "" {
-		u.authority.prefix = "//"
+		u.authority.prefix = authorityPrefix
 	}
 }
 
