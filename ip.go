@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
+// IsIP indicates if the URI host was specified using an IP address (v4 or v6).
 func (a authorityInfo) IsIP() bool {
-	return (a.isIPv6 && !a.isIPvFuture) || a.isIPv4
+	return a.isIPv4 || (a.isIPv6 && !a.isIPvFuture)
 }
 
+// IPAddr returns the parsed netip.Addr whenever IsIP is true (or the zero value whenever false).
 func (a authorityInfo) IPAddr() netip.Addr {
 	if !a.IsIP() {
 		return netip.Addr{}
