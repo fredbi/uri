@@ -625,7 +625,7 @@ func rawParseIPHostTests() []uriTest {
 		{
 			// TODO: should fail (invalid UTF8 escape sequence)
 			comment: "IPv6 host with invalid percent-encoding in zone identifier",
-			uriRaw:  "http://[fe80::1%25%C3~]:8080/",
+			uriRaw:  "http://[fe80::1%25%F3~]:8080/",
 		},
 		{
 			comment: "IP v4 host (escaped) %31 is percent-encoded for '1'",
@@ -1171,7 +1171,6 @@ func rawParsePassTests() []uriTest {
 		{
 			comment: "check percent encoding with DNS hostname, invalid escape sequence",
 			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
-			// ICI
 			// err:     ErrInvalidDNSName,
 		},
 		{
