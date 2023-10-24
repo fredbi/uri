@@ -5,22 +5,23 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"net/url"
 	"strings"
 )
 
-func (u uri) IsIP() bool {
-	return u.authority.isIPv6 || u.authority.isIPv4
+func (a authorityInfo) IsIP() bool {
+	return (a.isIPv6 && !a.isIPvFuture) || a.isIPv4
 }
 
-func (u uri) IPAddr() (netip.Addr, bool) {
-	isIP := u.IsIP()
-	if !isIP {
-		return netip.Addr{}, false
+func (a authorityInfo) IPAddr() netip.Addr {
+	if !a.IsIP() {
+		return netip.Addr{}
 	}
 
-	addr, _ := netip.ParseAddr(u.authority.host)
+	unescapedHost, _ := url.PathUnescape(a.host)
+	addr, _ := netip.ParseAddr(unescapedHost)
 
-	return addr, true
+	return addr
 }
 
 func validateIPv4(host string) error {
@@ -58,7 +59,6 @@ func validateIPv4(host string) error {
 				if currentPart[0] == '2' && b > '5' {
 					return errValueGreater255
 				}
-
 			case 2:
 				if currentPart[0] == '2' && currentPart[1] == '5' && b > '5' {
 					return errValueGreater255
@@ -117,19 +117,6 @@ func validateIPv6(host string) error {
 	// The zone ID may be percent-encoded
 	//  ZoneID = 1*( unreserved / pct-encoded )
 	//
-	// * address the provision made in the RFC for a "IPvFuture"
-
-	if host[0] == 'v' || host[0] == 'V' {
-		if err := validateIPvFuture(host[1:]); err != nil {
-			return errorsJoin(
-				ErrInvalidHostAddress,
-				err,
-			)
-		}
-
-		return nil
-	}
-
 	var ipv6WithoutZone, zoneID string
 	idx := strings.IndexRune(host, '%')
 	switch {

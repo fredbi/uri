@@ -87,26 +87,27 @@ func benchParseURLStdLib(payload []string) func(*testing.B) {
 }
 
 func Benchmark_String(b *testing.B) {
+	var ip ipType
 	tests := []*uri{
 		{
 			"foo", "//example.com:8042/over/there", "name=ferret", "nose",
-			authorityInfo{"//", "", "example.com", "8042", "/over/there", false, false},
+			authorityInfo{"//", "", "example.com", "8042", "/over/there", ip},
 		},
 		{
 			"http", "//httpbin.org/get", "utf8=\xe2\x98\x83", "",
-			authorityInfo{"//", "", "httpbin.org", "", "/get", false, false},
+			authorityInfo{"//", "", "httpbin.org", "", "/get", ip},
 		},
 		{
 			"mailto", "user@domain.com", "", "",
-			authorityInfo{"//", "user", "domain.com", "", "", false, false},
+			authorityInfo{"//", "user", "domain.com", "", "", ip},
 		},
 		{
 			"ssh", "//user@git.openstack.org:29418/openstack/keystone.git", "", "",
-			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", false, false},
+			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip},
 		},
 		{
 			"https", "//willo.io/", "", "yolo",
-			authorityInfo{"//", "", "willo.io", "", "/", false, false},
+			authorityInfo{"//", "", "willo.io", "", "/", ip},
 		},
 	}
 

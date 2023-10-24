@@ -46,9 +46,6 @@ type URI interface {
 
 	// Validate the different components of the URI
 	Validate() error
-
-	IsIP() bool
-	IPAddr() (netip.Addr, bool)
 }
 
 // Authority information that a URI contains
@@ -62,6 +59,15 @@ type Authority interface {
 	Path() string
 	String() string
 	Validate(...string) error
+
+	IsIP() bool
+	IPAddr() netip.Addr
+}
+
+type ipType struct {
+	isIPv4      bool
+	isIPv6      bool
+	isIPvFuture bool
 }
 
 const (
@@ -183,7 +189,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			hierPartEnd = len(raw)
 		}
 
-		authorityInfo, err := parseAuthority(raw[curr:hierPartEnd])
+		authority, err := parseAuthority(raw[curr:hierPartEnd])
 		if err != nil {
 			return nil, errorsJoin(ErrInvalidURI, err)
 		}
@@ -191,7 +197,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		u := &uri{
 			scheme:    scheme,
 			hierPart:  raw[curr:hierPartEnd],
-			authority: authorityInfo,
+			authority: authority,
 		}
 
 		return u, u.Validate()
@@ -199,13 +205,13 @@ func parse(raw string, withURIReference bool) (URI, error) {
 
 	var (
 		hierPart, query, fragment string
-		authorityInfo             authorityInfo
+		authority                 authorityInfo
 		err                       error
 	)
 
 	if hierPartEnd > 0 {
 		hierPart = raw[curr:hierPartEnd]
-		authorityInfo, err = parseAuthority(hierPart)
+		authority, err = parseAuthority(hierPart)
 		if err != nil {
 			return nil, errorsJoin(ErrInvalidURI, err)
 		}
@@ -226,7 +232,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 	if queryEnd == len(raw)-1 && hierPartEnd < 0 {
 		// trailing #,  no query "?"
 		hierPart = raw[curr:queryEnd]
-		authorityInfo, err = parseAuthority(hierPart)
+		authority, err = parseAuthority(hierPart)
 		if err != nil {
 			return nil, errorsJoin(ErrInvalidURI, err)
 		}
@@ -234,7 +240,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		u := &uri{
 			scheme:    scheme,
 			hierPart:  hierPart,
-			authority: authorityInfo,
+			authority: authority,
 			query:     query,
 		}
 
@@ -246,7 +252,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		if hierPartEnd < 0 {
 			// no query
 			hierPart = raw[curr:queryEnd]
-			authorityInfo, err = parseAuthority(hierPart)
+			authority, err = parseAuthority(hierPart)
 			if err != nil {
 				return nil, errorsJoin(ErrInvalidURI, err)
 			}
@@ -262,7 +268,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		hierPart:  hierPart,
 		query:     query,
 		fragment:  fragment,
-		authority: authorityInfo,
+		authority: authority,
 	}
 
 	return u, u.Validate()
@@ -289,7 +295,7 @@ func (u *uri) Scheme() string {
 
 func (u *uri) Authority() Authority {
 	u.ensureAuthorityExists()
-	return u.authority
+	return &u.authority
 }
 
 // Query returns parsed query parameters like standard lib URL.Query().
@@ -335,7 +341,11 @@ func (u *uri) Validate() error {
 	}
 
 	if u.hierPart != "" {
-		return u.Authority().Validate(u.scheme)
+		ip, err := u.authority.validate(u.scheme)
+		if err != nil {
+			return err
+		}
+		u.authority.ipType = ip
 	}
 
 	// empty hierpart case
@@ -468,8 +478,7 @@ type authorityInfo struct {
 	host     string
 	port     string
 	path     string
-	isIPv6   bool
-	isIPv4   bool
+	ipType
 }
 
 func (a authorityInfo) UserInfo() string { return a.userinfo }
@@ -504,32 +513,47 @@ func (a authorityInfo) String() string {
 // Validate the Authority part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
-func (a authorityInfo) Validate(schemes ...string) error {
+func (a *authorityInfo) Validate(schemes ...string) error {
+	ip, err := a.validate(schemes...)
+
+	if err != nil {
+		return err
+	}
+	a.ipType = ip
+
+	return nil
+}
+
+func (a authorityInfo) validate(schemes ...string) (ipType, error) {
+	var ip ipType
+
 	if a.path != "" {
 		if err := a.validatePath(a.path); err != nil {
-			return err
+			return ip, err
 		}
 	}
 
 	if a.host != "" {
-		if err := a.validateHost(a.host, a.isIPv6, schemes...); err != nil {
-			return err
+		var err error
+		ip, err = a.validateHost(a.host, a.isIPv6, schemes...)
+		if err != nil {
+			return ip, err
 		}
 	}
 
 	if a.port != "" {
 		if err := a.validatePort(a.port, a.host); err != nil {
-			return err
+			return ip, err
 		}
 	}
 
 	if a.userinfo != "" {
 		if err := a.validateUserInfo(a.userinfo); err != nil {
-			return err
+			return ip, err
 		}
 	}
 
-	return nil
+	return ip, nil
 }
 
 // validatePath validates the path part.
@@ -582,32 +606,43 @@ func (a authorityInfo) validatePath(path string) error {
 // validateHost validates the host part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2
-func (a *authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string) error {
+func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string) (ipType, error) {
 	// check for IP addresses
 	// * IPv6 are required to be enclosed within '[]' (isIPv6=true), if an IPv6 zone is present,
 	// there is a trailing escaped sequence, but the heading IPv6 literal must not be escaped.
 	// * IPv4 are not percent-escaped: strict addresses never contain parts starting a zero (e.g. 012 should be 12).
+	// * address the provision made in the RFC for a "IPvFuture"
 	if isIPv6 {
-		return validateIPv6(host)
+		if host[0] == 'v' || host[0] == 'V' {
+			if err := validateIPvFuture(host[1:]); err != nil {
+				return ipType{}, errorsJoin(
+					ErrInvalidHostAddress,
+					err,
+				)
+			}
+			// IPvFuture won't parse as a netip.Addr
+
+			return ipType{isIPv6: true, isIPvFuture: true}, nil
+		}
+
+		return ipType{isIPv6: true}, validateIPv6(host)
 	}
 
 	if err := validateIPv4(host); err == nil {
-		a.isIPv4 = true
-
-		return nil
+		return ipType{isIPv4: true}, nil
 	}
 
 	// this is not an IP, check for host DNS or registered name
 	//
 	// TODO: since this is not escaped, check the validity of the escape sequence
 	if err := validateHostForScheme(host, schemes...); err != nil {
-		return errorsJoin(
+		return ipType{}, errorsJoin(
 			ErrInvalidHost,
 			err,
 		)
 	}
 
-	return nil
+	return ipType{}, nil
 }
 
 // validateHostForScheme validates the host according to 2 different sets of rules:
@@ -876,9 +911,9 @@ func parseAuthority(hier string) (authorityInfo, error) {
 		prefix:   prefix,
 		userinfo: userinfo,
 		host:     host,
-		isIPv6:   isIPv6,
 		port:     port,
 		path:     path,
+		ipType:   ipType{isIPv6: isIPv6},
 	}, nil
 }
 
