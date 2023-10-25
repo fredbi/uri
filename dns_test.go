@@ -11,7 +11,7 @@ import (
 
 func TestDNSvsHost(t *testing.T) {
 	for _, scheme := range schemesWithDNS() {
-		require.True(t, UsesDNSHostValidation(scheme))
+		require.Truef(t, UsesDNSHostValidation(scheme), "expected scheme %q to use Internet Domain Names", scheme)
 	}
 
 	require.False(t, UsesDNSHostValidation("phone"))
@@ -85,7 +85,7 @@ func schemesWithDNS() []string {
 		"nfs",
 		"nntp",
 		"ntp",
-		"postgres",
+		"postgresql",
 		"redis",
 		"rmi",
 		"rtsp",
