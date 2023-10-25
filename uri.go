@@ -88,13 +88,6 @@ const (
 	maxDomainLength  = 255
 )
 
-var (
-	// predefined sets of accecpted runes beyond the "unreserved" character set
-	pcharExtraRunes           = []rune{colonMark, atHost} // pchar = unreserved | ':' | '@'
-	queryOrFragmentExtraRunes = append(pcharExtraRunes, slashMark, questionMark)
-	userInfoExtraRunes        = append(pcharExtraRunes, colonMark)
-)
-
 // IsURI tells if a URI is valid according to RFC3986/RFC397.
 func IsURI(raw string) bool {
 	_, err := Parse(raw)
