@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -44,6 +45,11 @@ type URI interface {
 
 	// Validate the different components of the URI
 	Validate() error
+
+	// Is the current port the default for this scheme?
+	IsDefaultPort() bool
+	// Default port for this scheme
+	DefaultPort() int
 }
 
 // Authority information that a URI contains
@@ -616,6 +622,8 @@ func validateRegisteredHostForScheme(host string) error {
 //
 // port = *DIGIT
 func (a authorityInfo) validatePort(port, host string) error {
+	const maxPort uint64 = 65535
+
 	if !isNumerical(port) {
 		return ErrInvalidPort
 	}
@@ -624,6 +632,14 @@ func (a authorityInfo) validatePort(port, host string) error {
 		return errorsJoin(
 			ErrMissingHost,
 			fmt.Errorf("whenever a port is specified, a host part must be present"),
+		)
+	}
+
+	portNum, _ := strconv.ParseUint(port, 10, 64)
+	if portNum > maxPort {
+		return errorsJoin(
+			ErrInvalidPort,
+			fmt.Errorf("a valid port lies in the range (0-%d)", maxPort),
 		)
 	}
 

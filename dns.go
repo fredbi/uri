@@ -16,6 +16,24 @@ import (
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
+	case "aaa":
+		return true
+	case "aaas":
+		return true
+	case "acap":
+		return true
+	case "acct":
+		return true
+	case "cap":
+		return true
+	case "cid":
+		return true
+	case "coap", "coaps", "coap+tcp", "coap+ws", "coaps+tcp", "coaps+ws":
+		return true
+	case "dav":
+		return true
+	case "dict":
+		return true
 	case "dns":
 		return true
 	case "dntp":
@@ -26,17 +44,33 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "git":
 		return true
+	case "gopher":
+		return true
+	case "h323":
+		return true
 	case "http":
 		return true
 	case "https":
 		return true
+	case "iax":
+		return true
+	case "icap":
+		return true
+	case "im":
+		return true
 	case "imap":
+		return true
+	case "ipp", "ipps":
 		return true
 	case "irc":
 		return true
 	case "jms":
 		return true
+	case "ldap":
+		return true
 	case "mailto":
+		return true
+	case "mid":
 		return true
 	case "nfs":
 		return true
@@ -44,7 +78,9 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "ntp":
 		return true
-	case "postgres":
+	case "postgresql":
+		return true
+	case "radius":
 		return true
 	case "redis":
 		return true
