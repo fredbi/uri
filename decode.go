@@ -44,6 +44,8 @@ func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) &&
 			// unreserved
 			r != '-' && r != '.' && r != '_' && r != '~' &&
+			// iunreserved as per RFC3987
+			!isUcsChar(r) &&
 			// sub-delims
 			r != '!' && r != '$' && r != '&' && r != '\'' && r != '(' && r != ')' &&
 			r != '*' && r != '+' && r != ',' && r != ';' && r != '=' {
@@ -194,4 +196,48 @@ func unhex(c byte) byte {
 		return c - 'A' + 10
 	}
 	return 0
+}
+
+var (
+	ucschar = &unicode.RangeTable{
+		R16: []unicode.Range16{
+			{0x000A0, 0x0D7FF, 1},
+			{0x0F900, 0x0FDCF, 1},
+			{0x0FDF0, 0x0FFEF, 1},
+		},
+		R32: []unicode.Range32{
+			{0x10000, 0x1FFFD, 1},
+			{0x20000, 0x2FFFD, 1},
+			{0x30000, 0x3FFFD, 1},
+			{0x40000, 0x4FFFD, 1},
+			{0x50000, 0x5FFFD, 1},
+			{0x60000, 0x6FFFD, 1},
+			{0x70000, 0x7FFFD, 1},
+			{0x80000, 0x8FFFD, 1},
+			{0x90000, 0x9FFFD, 1},
+			{0xA0000, 0xAFFFD, 1},
+			{0xB0000, 0xBFFFD, 1},
+			{0xC0000, 0xCFFFD, 1},
+			{0xD0000, 0xDFFFD, 1},
+			{0xE1000, 0xEFFFD, 1},
+		},
+	}
+
+	iprivate = &unicode.RangeTable{
+		R16: []unicode.Range16{
+			{0xE000, 0xF8FF, 1},
+		},
+		R32: []unicode.Range32{
+			{0xF0000, 0xFFFFD, 1},
+			{0x100000, 0x10FFFD, 1},
+		},
+	}
+)
+
+func isUcsChar(r rune) bool {
+	return unicode.In(r, ucschar)
+}
+
+func isIPrivate(r rune) bool {
+	return unicode.In(r, iprivate)
 }
