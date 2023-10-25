@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
+func validateUnreservedWithExtra(s string, extraRunesFunc func(rune) bool) error {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		if r == utf8.RuneError {
@@ -42,22 +42,10 @@ func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
 		// unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
 		// pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) &&
-			// unreserved
-			r != '-' && r != '.' && r != '_' && r != '~' &&
-			// sub-delims
-			r != '!' && r != '$' && r != '&' && r != '\'' && r != '(' && r != ')' &&
-			r != '*' && r != '+' && r != ',' && r != ';' && r != '=' {
-			runeFound := false
-			for _, acceptedRune := range acceptedRunes {
-				if r == acceptedRune {
-					runeFound = true
-					break
-				}
-			}
-
-			if !runeFound {
-				return fmt.Errorf("contains an invalid character: '%U' (%q) near %q", r, r, s[i:])
-			}
+			!isUnreserved(r) &&
+			!isSubDelims(r) &&
+			(extraRunesFunc == nil || !extraRunesFunc(r)) {
+			return fmt.Errorf("contains an invalid character: '%U' (%q) near %q", r, r, s[i:])
 		}
 	}
 
@@ -86,7 +74,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 			return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 		}
 
-		if s[offset] != '%' {
+		if s[offset] != percentMark {
 			return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 		}
 		offset++
@@ -104,7 +92,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 				return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 			}
 
-			if s[offset] != '%' {
+			if s[offset] != percentMark {
 				return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 			}
 			offset++
@@ -121,7 +109,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 					return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 				}
 
-				if s[offset] != '%' {
+				if s[offset] != percentMark {
 					return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 				}
 				offset++
@@ -189,4 +177,63 @@ func unhex(c byte) byte {
 		return c - 'A' + 10
 	}
 	return 0
+}
+
+func isUnreserved(r rune) bool {
+	// unreserved characters
+	switch r {
+	case '-', '.', '_', '~':
+		return true
+	default:
+		return false
+	}
+}
+
+func isSubDelims(r rune) bool {
+	// sub-delims
+	switch r {
+	case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=':
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+func isGenDelims(r rune) bool {
+	// gen-delims
+	switch r{
+	case ':', '/', '?', '#', '[', ']', '@':
+		return true
+	default:
+		return false
+	}
+}
+*/
+
+func isPcharExtraRune(r rune) bool {
+	switch r {
+	case colonMark, atHost:
+		return true
+	default:
+		return false
+	}
+}
+
+func isQueryOrFragmentExtraRune(r rune) bool {
+	switch r {
+	case colonMark, atHost, slashMark, questionMark:
+		return true
+	default:
+		return false
+	}
+}
+
+func isUserInfoExtraRune(r rune) bool {
+	switch r {
+	case colonMark:
+		return true
+	default:
+		return false
+	}
 }

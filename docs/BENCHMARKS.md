@@ -134,6 +134,9 @@ Benchmark_Parse/with_URL_payload_with_IPs
 Benchmark_Parse/with_URL_payload_with_IPs-16       	96977450	       376.3 ns/op	     176 B/op	       1 allocs/op
 
 ## After stricter IP parsing (naive)
+
+Naive implementation with too many gc allocs.
+
 go test -v -bench . -benchtime 30s -run Bench
 goos: linux
 goarch: amd64
@@ -191,7 +194,7 @@ Benchmark_Parse/with_URL_payload_with_IPs-16       	93061443	       374.6 ns/op	
 Benchmark_String-16                                	180403320	       199.9 ns/op	     142 B/op	       5 allocs/op
 
 
-# After strict percent-encoding check on host
+## After strict percent-encoding check on host
 
 goos: linux
 goarch: amd64
@@ -214,7 +217,9 @@ Benchmark_String
 Benchmark_String-16                                	178247580	       203.6 ns/op	     142 B/op	       5 allocs/op
 PASS
 
-# After rewrite with uriReader
+## After rewrite with uriReader
+
+Abstraction comes at a cost. NO GO
 
  go test -bench . -benchtime 30s -run Bench
 goos: linux
@@ -230,7 +235,7 @@ Benchmark_Parse/with_URL_payload_with_IPs-16       	96785080	       369.1 ns/op	
 Benchmark_String-16                                	180658692	       197.4 ns/op	     142 B/op	       5 allocs/op
 PASS
 
-# After rewrite with RuneInString, no Reader
+## After rewrite with RuneInString, no Reader
 
 go test -v -run Bench -benchtime 30s -bench Bench
 goos: linux
@@ -252,5 +257,31 @@ Benchmark_Parse/with_URL_payload_with_IPs
 Benchmark_Parse/with_URL_payload_with_IPs-16       	98766901	       369.3 ns/op	     176 B/op	       1 allocs/op
 Benchmark_String
 Benchmark_String-16                                	176733871	       202.6 ns/op	     142 B/op	       5 allocs/op
+PASS
+
+## replaced rune slice iteration by switch statement
+
+Actually a slight degradation. NO GO
+
+ go test -v -pgo=auto -run Bench -benchtime 30s -bench Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+Benchmark_Parse/with_URI_simple_payload-16         	92742778	       391.3 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       321.1 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	93061579	       393.8 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       301.8 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	81460168	       424.6 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	94139295	       365.8 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	178303498	       201.8 ns/op	     142 B/op	       5 allocs/op
 PASS
 
