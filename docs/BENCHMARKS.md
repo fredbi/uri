@@ -134,6 +134,9 @@ Benchmark_Parse/with_URL_payload_with_IPs
 Benchmark_Parse/with_URL_payload_with_IPs-16       	96977450	       376.3 ns/op	     176 B/op	       1 allocs/op
 
 ## After stricter IP parsing (naive)
+
+Naive implementation with too many gc allocs.
+
 go test -v -bench . -benchtime 30s -run Bench
 goos: linux
 goarch: amd64
@@ -216,6 +219,8 @@ PASS
 
 ## After rewrite with uriReader
 
+Abstraction comes at a cost. NO GO
+
  go test -bench . -benchtime 30s -run Bench
 goos: linux
 goarch: amd64
@@ -255,17 +260,28 @@ Benchmark_String-16                                	176733871	       202.6 ns/op
 PASS
 
 ## replaced rune slice iteration by switch statement
+
+Actually a slight degradation. NO GO
+
+ go test -v -pgo=auto -run Bench -benchtime 30s -bench Bench
 goos: linux
 goarch: amd64
 pkg: github.com/fredbi/uri
-cpu: Intel(R) Core(TM) i5-6200U CPU @ 2.30GHz
-Benchmark_Parse/with_URI_simple_payload-4         	 1964378	       610.4 ns/op	     208 B/op	       2 allocs/op
-Benchmark_Parse/with_URL_simple_payload-4         	 2546800	       462.1 ns/op	     168 B/op	       1 allocs/op
-Benchmark_Parse/with_URI_mixed_payload-4          	 1938195	       618.8 ns/op	     208 B/op	       2 allocs/op
-Benchmark_Parse/with_URL_mixed_payload-4          	 2709578	       435.6 ns/op	     163 B/op	       1 allocs/op
-Benchmark_Parse/with_URI_payload_with_IPs-4       	 1875967	       645.6 ns/op	     197 B/op	       1 allocs/op
-Benchmark_Parse/with_URL_payload_with_IPs-4       	 2291342	       520.7 ns/op	     176 B/op	       1 allocs/op
-Benchmark_String-4                                	 4502607	       254.0 ns/op	     142 B/op	       5 allocs/op
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+Benchmark_Parse/with_URI_simple_payload-16         	92742778	       391.3 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       321.1 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	93061579	       393.8 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       301.8 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	81460168	       424.6 ns/op	     160 B/op	       1 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	94139295	       365.8 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	178303498	       201.8 ns/op	     142 B/op	       5 allocs/op
 PASS
-ok  	github.com/fredbi/uri	11.949s
 
