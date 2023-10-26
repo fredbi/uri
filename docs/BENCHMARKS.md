@@ -254,3 +254,14 @@ Benchmark_String
 Benchmark_String-16                                	176733871	       202.6 ns/op	     142 B/op	       5 allocs/op
 PASS
 
+# After optim allocs String()
+
+go test -v -run Bench -benchtime 30s -bench String
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_String
+Benchmark_String-16    	457095075	        79.87 ns/op	      48 B/op	       1 allocs/op
+PASS
+

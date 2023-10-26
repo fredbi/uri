@@ -430,6 +430,17 @@ func (a authorityInfo) Port() string     { return a.port }
 func (a authorityInfo) Path() string     { return a.path }
 func (a authorityInfo) String() string {
 	buf := strings.Builder{}
+	buf.Grow(a.builderSize())
+	a.buildString(&buf)
+
+	return buf.String()
+}
+
+func (a authorityInfo) builderSize() int {
+	return len(a.prefix) + len(a.userinfo) + 1 + len(a.host) + 2 + len(a.port) + 1 + len(a.path)
+}
+
+func (a authorityInfo) buildString(buf *strings.Builder) {
 	buf.WriteString(a.prefix)
 	buf.WriteString(a.userinfo)
 
@@ -449,8 +460,6 @@ func (a authorityInfo) String() string {
 
 	buf.WriteString(a.port)
 	buf.WriteString(a.path)
-
-	return buf.String()
 }
 
 // Validate the Authority part.
@@ -754,12 +763,14 @@ func (u *uri) ensureAuthorityExists() {
 // * https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
 func (u *uri) String() string {
 	buf := strings.Builder{}
+	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
+
 	if len(u.scheme) > 0 {
 		buf.WriteString(u.scheme)
 		buf.WriteByte(colonMark)
 	}
 
-	buf.WriteString(u.authority.String())
+	u.authority.buildString(&buf)
 
 	if len(u.query) > 0 {
 		buf.WriteByte(questionMark)
