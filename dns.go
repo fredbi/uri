@@ -16,6 +16,12 @@ import (
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
+	// prioritize early exit on most commonly used schemes
+	case "https", "http":
+		return true
+	case "file":
+		return false
+		// less commonly used schemes
 	case "aaa":
 		return true
 	case "aaas":
@@ -48,10 +54,6 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "h323":
 		return true
-	case "http":
-		return true
-	case "https":
-		return true
 	case "iax":
 		return true
 	case "icap":
@@ -62,7 +64,7 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "ipp", "ipps":
 		return true
-	case "irc":
+	case "irc", "irc6", "ircs":
 		return true
 	case "jms":
 		return true
@@ -71,6 +73,8 @@ var UsesDNSHostValidation = func(scheme string) bool {
 	case "mailto":
 		return true
 	case "mid":
+		return true
+	case "msrp", "msrps":
 		return true
 	case "nfs":
 		return true
@@ -86,7 +90,7 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "rmi":
 		return true
-	case "rtsp":
+	case "rtsp", "rtsps", "rtspu":
 		return true
 	case "rsync":
 		return true
