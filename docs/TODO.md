@@ -7,6 +7,7 @@
 * [x] more nitpicks - check if the length checks on DNS host name are in bytes or in runes => bytes
 * [x] DefaultPort(), IsDefaultPort()
 * [] IRI ucs charset compliance (att: perf challenge)
+* [] FilePath()
 * [] normalizer
 * [] V2 zero alloc, no interface, fluent builder with inner error checking
 * [] doc: complete the librarian/archivist work on specs, etc + FAQ to clarify the somewhat arcane world of this set of RFCs.

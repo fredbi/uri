@@ -98,6 +98,6 @@ func TestUnhex(t *testing.T) {
 func TestValidateUnreservedWithExtra(t *testing.T) {
 	// edge case: invalid rune in string
 	require.Error(t,
-		validateUnreservedWithExtra(string([]rune{utf8.RuneError}), nil),
+		validateUnreservedWithExtra(string([]rune{utf8.RuneError}), unreservedAndSubDelimsCharSet),
 	)
 }

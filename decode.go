@@ -5,9 +5,11 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/bits-and-blooms/bitset"
 )
 
-func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
+func validateUnreservedWithExtra(s string, runeSet charSet) error {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		if r == utf8.RuneError {
@@ -35,29 +37,8 @@ func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
 			continue
 		}
 
-		// RFC grammar definitions:
-		// sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
-		//               / "*" / "+" / "," / ";" / "="
-		// gen-delims  = ":" / "/" / "?" / "#" / "[" / "]" / "@"
-		// unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
-		// pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) &&
-			// unreserved
-			r != '-' && r != '.' && r != '_' && r != '~' &&
-			// sub-delims
-			r != '!' && r != '$' && r != '&' && r != '\'' && r != '(' && r != ')' &&
-			r != '*' && r != '+' && r != ',' && r != ';' && r != '=' {
-			runeFound := false
-			for _, acceptedRune := range acceptedRunes {
-				if r == acceptedRune {
-					runeFound = true
-					break
-				}
-			}
-
-			if !runeFound {
-				return fmt.Errorf("contains an invalid character: '%U' (%q) near %q", r, r, s[i:])
-			}
+		if !runeSet.IsInSet(r) {
+			return fmt.Errorf("contains an invalid character: '%U' (%q) near %q", r, r, s[i:])
 		}
 	}
 
@@ -86,7 +67,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 			return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 		}
 
-		if s[offset] != '%' {
+		if s[offset] != percentMark {
 			return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 		}
 		offset++
@@ -104,7 +85,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 				return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 			}
 
-			if s[offset] != '%' {
+			if s[offset] != percentMark {
 				return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 			}
 			offset++
@@ -121,7 +102,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 					return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s)
 				}
 
-				if s[offset] != '%' {
+				if s[offset] != percentMark {
 					return 0, 0, fmt.Errorf("expected a '%%' escape character, near: %q", s[offset:])
 				}
 				offset++
@@ -179,6 +160,73 @@ func isNumerical(input string) bool {
 	return strings.IndexFunc(input, isNotDigit[rune]) == -1
 }
 
+var accepted = []byte{
+	'-', '.', '_', '~',
+	'!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=',
+}
+
+type charSet struct {
+	*bitset.BitSet
+	runeFunc func(rune) bool
+}
+
+func (c charSet) IsInSet(r rune) bool {
+	if r < utf8.RuneSelf {
+		return c.Test(uint(r))
+	}
+
+	return c.runeFunc(r)
+}
+
+func (c charSet) Clone() charSet {
+	return charSet{
+		BitSet: c.BitSet.Clone(),
+	}
+}
+
+var (
+	unreservedAndSubDelimsCharSet charSet
+	pcharCharSet                  charSet
+	userInfoCharSet               charSet
+	queryOrFragmentCharSet        charSet
+)
+
+func init() {
+	unreservedAndSubDelimsCharSet = charSet{
+		BitSet:   bitset.New(uint(len(accepted))),
+		runeFunc: isUnreservedOrSubDelimsRune,
+	}
+
+	for _, r := range accepted {
+		unreservedAndSubDelimsCharSet.Set(uint(r))
+	}
+	for r := '0'; r <= '9'; r++ {
+		unreservedAndSubDelimsCharSet.Set(uint(r))
+	}
+	for r := 'A'; r <= 'Z'; r++ {
+		unreservedAndSubDelimsCharSet.Set(uint(r))
+	}
+	for r := 'a'; r <= 'z'; r++ {
+		unreservedAndSubDelimsCharSet.Set(uint(r))
+	}
+
+	pcharCharSet = unreservedAndSubDelimsCharSet.Clone()
+	pcharCharSet.Set(uint(':'))
+	pcharCharSet.Set(uint('@'))
+	pcharCharSet.runeFunc = isPcharRune
+
+	userInfoCharSet = unreservedAndSubDelimsCharSet.Clone()
+	userInfoCharSet.Set(uint(':'))
+	userInfoCharSet.runeFunc = isUserInfoRune
+
+	queryOrFragmentCharSet = unreservedAndSubDelimsCharSet.Clone()
+	queryOrFragmentCharSet.Set(uint(colonMark))
+	queryOrFragmentCharSet.Set(uint(atHost))
+	queryOrFragmentCharSet.Set(uint(slashMark))
+	queryOrFragmentCharSet.Set(uint(questionMark))
+	queryOrFragmentCharSet.runeFunc = isQueryOrFragmentRune
+}
+
 func unhex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
@@ -189,4 +237,69 @@ func unhex(c byte) byte {
 		return c - 'A' + 10
 	}
 	return 0
+}
+
+func isUnreservedOrSubDelimsRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) ||
+		isUnreserved(r) ||
+		isSubDelims(r)
+}
+
+func isUnreserved(r rune) bool {
+	// unreserved characters
+	switch r {
+	case '-', '.', '_', '~':
+		return true
+	default:
+		return false
+	}
+}
+
+func isSubDelims(r rune) bool {
+	// sub-delims
+	switch r {
+	case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=':
+		return true
+	default:
+		return false
+	}
+}
+
+/*
+func isGenDelims(r rune) bool {
+	// gen-delims
+	switch r{
+	case ':', '/', '?', '#', '[', ']', '@':
+		return true
+	default:
+		return false
+	}
+}
+*/
+
+func isPcharRune(r rune) bool {
+	switch r {
+	case colonMark, atHost:
+		return true
+	default:
+		return isUnreservedOrSubDelimsRune(r)
+	}
+}
+
+func isQueryOrFragmentRune(r rune) bool {
+	switch r {
+	case colonMark, atHost, slashMark, questionMark:
+		return true
+	default:
+		return isUnreservedOrSubDelimsRune(r)
+	}
+}
+
+func isUserInfoRune(r rune) bool {
+	switch r {
+	case colonMark:
+		return true
+	default:
+		return isUnreservedOrSubDelimsRune(r)
+	}
 }

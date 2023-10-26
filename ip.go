@@ -165,7 +165,7 @@ func validateIPv6(host string) error {
 		)
 	}
 
-	if err := validateUnreservedWithExtra(zoneID, nil); err != nil {
+	if err := validateUnreservedWithExtra(zoneID, unreservedAndSubDelimsCharSet); err != nil {
 		return errorsJoin(
 			ErrInvalidHostAddress,
 			fmt.Errorf("invalid IPv6 zoneID %q: %w", zoneID, err),
@@ -221,6 +221,7 @@ func validateIPvFuture(address string) error {
 		return errors.New("invalid IP vFuture format: expect a non-empty address after the version tag")
 	}
 
-	// TODO: wrong because IpvFuture is not escaped
-	return validateUnreservedWithExtra(address[offset:], userInfoExtraRunes)
+	// RFC3986 states that IpvFuture is not escaped, but IPv6 has already evolved to add an escape zoneID.
+	// We assume that IPvFuture supports escaping as well.
+	return validateUnreservedWithExtra(address[offset:], userInfoCharSet)
 }
