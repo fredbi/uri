@@ -144,4 +144,14 @@ func Benchmark_DNSSchemes(b *testing.B) {
 		}
 		fmt.Fprintln(io.Discard, found)
 	})
+
+	b.Run("with FNV1a32 hash", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			scheme := schemes[i%len(schemes)]
+			found = hashDNSHostValidation(scheme)
+		}
+		fmt.Fprintln(io.Discard, found)
+	})
 }

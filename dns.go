@@ -2,13 +2,91 @@ package uri
 
 import (
 	"fmt"
+	"hash/crc64"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
+// var h = fnv.New64a()
+var h = crc64.New(crc64.MakeTable(crc64.ISO))
+
+func hashDNSHostValidation(scheme string) bool {
+	h.Reset()
+	ptr := unsafe.StringData(scheme)
+	b := unsafe.Slice(ptr, len(scheme))
+	_, _ = h.Write(b)
+	k := h.Sum64()
+
+	_, ok := dnsSchemesMap[k]
+
+	return ok
+}
+
+var dnsSchemesMap map[uint64]struct{}
+
+func init() {
+	dnsSchemesMap = make(map[uint64]struct{}, 64)
+	for _, scheme := range []string{
+		"https",
+		"http",
+		"aaa", "aaas", "acap", "acct",
+		"cap", "cid",
+		"coap", "coaps", "coap+tcp", "coap+ws", "coaps+tcp", "coaps+ws",
+		"dav", "dict",
+		"dns",
+		"dntp",
+		"finger",
+		"ftp",
+		"git",
+		"gopher",
+		"h323",
+		"iax",
+		"icap",
+		"im",
+		"imap",
+		"ipp", "ipps",
+		"irc", "irc6", "ircs",
+		"jms",
+		"ldap",
+		"mailto",
+		"mid",
+		"msrp", "msrps",
+		"nfs",
+		"nntp",
+		"ntp",
+		"postgresql",
+		"radius",
+		"redis",
+		"rmi",
+		"rtsp", "rtsps", "rtspu",
+		"rsync",
+		"sftp",
+		"skype",
+		"smtp",
+		"snmp",
+		"soap",
+		"ssh",
+		"steam",
+		"svn",
+		"tcp",
+		"telnet",
+		"udp",
+		"vnc",
+		"wais",
+		"ws",
+		"wss",
+	} {
+		h.Reset()
+		_, _ = h.Write([]byte(scheme))
+		k := h.Sum64()
+		dnsSchemesMap[k] = struct{}{}
+	}
+}
+
 // UsesDNSHostValidation returns true if the provided scheme has host validation
-// that does not follow RFC3986 (which is quite generic), and assumes a valid
-// DNS hostname instead.
+// that does not follow RFC 3986 (which is quite generic), and assumes a valid
+// DNS hostname instead (RFC 1035).
 //
 // This function is declared as a global variable that may be overridden at the package level,
 // in case you need specific schemes to validate the host as a DNS name.
@@ -16,29 +94,20 @@ import (
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
-	// prioritize early exit on most commonly used schemes
-	case "https", "http":
+	case "https":
+		return true
+	case "http":
 		return true
 	case "file":
 		return false
-		// less commonly used schemes
-	case "aaa":
+		// less frequently used schemes
+	case "aaa", "aaas", "acap", "acct":
 		return true
-	case "aaas":
-		return true
-	case "acap":
-		return true
-	case "acct":
-		return true
-	case "cap":
-		return true
-	case "cid":
+	case "cap", "cid":
 		return true
 	case "coap", "coaps", "coap+tcp", "coap+ws", "coaps+tcp", "coaps+ws":
 		return true
-	case "dav":
-		return true
-	case "dict":
+	case "dav", "dict":
 		return true
 	case "dns":
 		return true
