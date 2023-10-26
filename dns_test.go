@@ -18,6 +18,7 @@ func TestDNSvsHost(t *testing.T) {
 }
 
 func TestValidateHostForScheme(t *testing.T) {
+	o := defaultOptions()
 	for _, host := range []string{
 		"a.b.c",
 		"a",
@@ -32,7 +33,7 @@ func TestValidateHostForScheme(t *testing.T) {
 		"a.b.c.d%30",
 		"a.b.c.%55",
 	} {
-		require.NoErrorf(t, validateHostForScheme(host, "http"),
+		require.NoErrorf(t, validateHostForScheme(host, "http", o),
 			"expected host %q to validate",
 			host,
 		)
@@ -62,7 +63,7 @@ func TestValidateHostForScheme(t *testing.T) {
 		"%",
 		"%X",
 	} {
-		require.Errorf(t, validateHostForScheme(host, "http"),
+		require.Errorf(t, validateHostForScheme(host, "http", o),
 			"expected host %q NOT to validate",
 			host,
 		)

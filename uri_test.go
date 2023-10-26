@@ -14,7 +14,7 @@ import (
 type (
 	uriTest struct {
 		uriRaw      string
-		uri         *uri
+		uri         URI
 		err         error
 		comment     string
 		isReference bool
@@ -112,14 +112,16 @@ func TestString(t *testing.T) {
 }
 
 func TestValidateScheme(t *testing.T) {
+	o := defaultOptions()
 	t.Run("scheme should not be shorter than 2 characters", func(t *testing.T) {
-		u := &uri{}
-		require.Error(t, u.validateScheme("x"))
+		u := URI{}
+		require.Error(t, u.validateScheme("x", o))
 	})
 }
 
 func TestValidatePath(t *testing.T) {
-	u := authorityInfo{}
+	o := defaultOptions()
+	u := Authority{}
 	for _, path := range []string{
 		"/a/b/c",
 		"a",
@@ -130,7 +132,7 @@ func TestValidatePath(t *testing.T) {
 		"www/詹姆斯/org/",
 		"a//b//",
 	} {
-		require.NoErrorf(t, u.validatePath(path),
+		require.NoErrorf(t, u.validatePath(path, o),
 			"expected path %q to validate",
 			path,
 		)
@@ -145,7 +147,7 @@ func TestValidatePath(t *testing.T) {
 		"{",
 		"www/詹{姆斯/org/",
 	} {
-		require.Errorf(t, u.validatePath(path),
+		require.Errorf(t, u.validatePath(path, o),
 			"expected path %q NOT to validate",
 			path,
 		)
@@ -154,6 +156,8 @@ func TestValidatePath(t *testing.T) {
 
 func testLoop(generator testGenerator) func(t *testing.T) {
 	// table-driven tests for IsURI, IsURIReference, Parse and ParseReference.
+	o := defaultOptions()
+
 	return func(t *testing.T) {
 		for _, toPin := range generator() {
 			test := toPin
@@ -211,7 +215,8 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 				t.Run("assert IsURI", func(t *testing.T) {
 					assertIsURI(t, test.uriRaw, test.err != nil, test.isReference)
 
-					if test.uri != nil {
+					var zero URI
+					if test.uri != zero {
 						// we want to assert struct in-depth, otherwise no error is good enough
 						assertURI(t, test.uriRaw, test.uri, actual)
 					}
@@ -238,7 +243,8 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 				})
 
 				t.Run("assert authority.Validate", func(t *testing.T) {
-					require.Nil(t, auth.Validate(actual.Scheme()))
+					_, err := auth.validateForScheme(actual.Scheme(), o)
+					require.NoError(t, err)
 				})
 			})
 		}
@@ -307,5 +313,14 @@ func assertIsURI(t *testing.T, raw string, expectError, isReference bool) {
 
 	require.Truef(t, IsURI(raw),
 		"expected %q to be a valid URI", raw,
+	)
+}
+
+func TestParseWithOptions(t *testing.T) {
+	require.True(t,
+		IsURI("//foo.bar/?baz=qux#quux", WithReference(true)),
+	)
+	require.False(t,
+		IsURI("//foo.bar/?baz=qux#quux", WithReference(false)),
 	)
 }

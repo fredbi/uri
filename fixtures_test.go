@@ -123,12 +123,12 @@ func rawParseStructureTests() []uriTest {
 		{
 			comment: "// without // prefix, this is parsed as a path",
 			uriRaw:  "mailto:user@domain.com",
-			uri: &uri{
+			uri: URI{
 				scheme:   "mailto",
 				hierPart: "user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					path: "user@domain.com",
 				},
 			},
@@ -136,12 +136,12 @@ func rawParseStructureTests() []uriTest {
 		{
 			comment: "with // prefix, this parsed as a user + host",
 			uriRaw:  "mailto://user@domain.com",
-			uri: &uri{
+			uri: URI{
 				scheme:   "mailto",
 				hierPart: "//user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "domain.com",
@@ -321,6 +321,16 @@ func rawParseSchemeTests() []uriTest {
 			comment: "represents a hierarchical absolute URI and does not contain '://'",
 			uriRaw:  "www.contoso.com/path/file",
 			err:     ErrNoSchemeFound,
+		},
+		{
+			comment: "invalid scheme (invalid unicode letter character) (3)",
+			uriRaw:  "érié://www.example.com",
+			err:     ErrInvalidScheme,
+		},
+		{
+			comment: "invalid scheme (invalid unicode digit character) (3)",
+			uriRaw:  "numeriⅩ://www.example.com",
+			err:     ErrInvalidScheme,
 		},
 	}
 }
@@ -572,12 +582,12 @@ func rawParseIPHostTests() []uriTest {
 		{
 			comment: "IPv6 host",
 			uriRaw:  "mailto://user@[fe80::1]",
-			uri: &uri{
+			uri: URI{
 				scheme:   "mailto",
 				hierPart: "//user@[fe80::1]",
 				query:    "",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "fe80::1",
@@ -939,12 +949,12 @@ func rawParsePassTests() []uriTest {
 	return []uriTest{
 		{
 			uriRaw: "foo://example.com:8042/over/there?name=ferret#nose",
-			uri: &uri{
+			uri: URI{
 				scheme:   "foo",
 				hierPart: "//example.com:8042/over/there",
 				query:    "name=ferret",
 				fragment: "nose",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "",
 					host:     "example.com",
@@ -956,12 +966,12 @@ func rawParsePassTests() []uriTest {
 		},
 		{
 			uriRaw: "http://httpbin.org/get?utf8=%e2%98%83",
-			uri: &uri{
+			uri: URI{
 				scheme:   "http",
 				hierPart: "//httpbin.org/get",
 				query:    "utf8=%e2%98%83",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "",
 					host:     "httpbin.org",
@@ -973,12 +983,12 @@ func rawParsePassTests() []uriTest {
 		},
 		{
 			uriRaw: "mailto://user@domain.com",
-			uri: &uri{
+			uri: URI{
 				scheme:   "mailto",
 				hierPart: "//user@domain.com",
 				query:    "",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "domain.com",
@@ -990,12 +1000,12 @@ func rawParsePassTests() []uriTest {
 		},
 		{
 			uriRaw: "ssh://user@git.openstack.org:29418/openstack/keystone.git",
-			uri: &uri{
+			uri: URI{
 				scheme:   "ssh",
 				hierPart: "//user@git.openstack.org:29418/openstack/keystone.git",
 				query:    "",
 				fragment: "",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "user",
 					host:     "git.openstack.org",
@@ -1006,12 +1016,12 @@ func rawParsePassTests() []uriTest {
 		},
 		{
 			uriRaw: "https://willo.io/#yolo",
-			uri: &uri{
+			uri: URI{
 				scheme:   "https",
 				hierPart: "//willo.io/",
 				query:    "",
 				fragment: "yolo",
-				authority: authorityInfo{
+				authority: Authority{
 					prefix:   "//",
 					userinfo: "",
 					host:     "willo.io",
@@ -1155,8 +1165,7 @@ func rawParsePassTests() []uriTest {
 			uriRaw:  "ldap://[2001:db8::7]/c=GB?objectClass?one",
 			asserter: func(t testing.TB, u URI) {
 				assert.Equal(t, "/c=GB", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "objectClass?one", nuri.query) // TODO(fred): use Query() and url.Values
+				assert.Equal(t, "objectClass?one", u.query) // TODO(fred): use Query() and url.Values
 				assert.Equal(t, "", u.Fragment())
 			},
 		},
@@ -1165,8 +1174,7 @@ func rawParsePassTests() []uriTest {
 			uriRaw:  "http://www.example.org/hello/world.txt/?id=5&part=three",
 			asserter: func(t testing.TB, u URI) {
 				assert.Equal(t, "/hello/world.txt/", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "id=5&part=three", nuri.query)
+				assert.Equal(t, "id=5&part=three", u.query)
 				assert.Equal(t, "", u.Fragment())
 			},
 		},
@@ -1175,8 +1183,7 @@ func rawParsePassTests() []uriTest {
 			uriRaw:  "http://www.example.org/hello/world.txt/?id=5&part=three?another#abc?efg",
 			asserter: func(t testing.TB, u URI) {
 				assert.Equal(t, "/hello/world.txt/", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "id=5&part=three?another", nuri.query)
+				assert.Equal(t, "id=5&part=three?another", u.query)
 				assert.Equal(t, "abc?efg", u.Fragment())
 				assert.Equal(t, url.Values{"id": []string{"5"}, "part": []string{"three?another"}}, u.Query())
 			},

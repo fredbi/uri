@@ -13,8 +13,9 @@ v1.2
 * [x] fix scheme tolerance to be on ASCII only
 * [x] document the choice of a strict % escaping policy regarding char encoding (UTF8 mandatory)
 * [] handle empty fragment, empty query
+* [] fix scheme tolerance to be on ASCII only
 * [] IRI ucs charset compliance (att: perf challenge)
-- [] Support IRI iprivate in query
+* [] Support IRI iprivate in query
 * [] normalizer
 
 v2.0.0
