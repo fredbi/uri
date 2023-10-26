@@ -50,6 +50,8 @@ type URI interface {
 	IsDefaultPort() bool
 	// Default port for this scheme
 	DefaultPort() int
+
+	Err() error
 }
 
 // Authority information that a URI contains
@@ -66,6 +68,8 @@ type Authority interface {
 
 	IsIP() bool
 	IPAddr() netip.Addr
+
+	Err() error
 }
 
 type ipType struct {
@@ -298,6 +302,7 @@ type uri struct {
 
 	// parsed components
 	authority authorityInfo
+	err       error
 }
 
 func (u *uri) URI() URI {
@@ -327,18 +332,22 @@ func (u *uri) Fragment() string {
 func (u *uri) Validate() error {
 	if u.scheme != "" {
 		if err := u.validateScheme(u.scheme); err != nil {
+			u.err = err
 			return err
 		}
 	}
 
 	if u.query != "" {
 		if err := u.validateQuery(u.query); err != nil {
+			u.err = err
 			return err
 		}
 	}
 
 	if u.fragment != "" {
 		if err := u.validateFragment(u.fragment); err != nil {
+			u.err = err
+			u.err = err
 			return err
 		}
 	}
@@ -346,6 +355,8 @@ func (u *uri) Validate() error {
 	if u.hierPart != "" {
 		ip, err := u.authority.validate(u.scheme)
 		if err != nil {
+			u.err = err
+			u.authority.err = err
 			return err
 		}
 		u.authority.ipType = ip
@@ -422,6 +433,7 @@ type authorityInfo struct {
 	port     string
 	path     string
 	ipType
+	err error
 }
 
 func (a authorityInfo) UserInfo() string { return a.userinfo }
@@ -469,6 +481,8 @@ func (a *authorityInfo) Validate(schemes ...string) error {
 	ip, err := a.validate(schemes...)
 
 	if err != nil {
+		a.err = err
+
 		return err
 	}
 	a.ipType = ip

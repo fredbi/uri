@@ -1200,23 +1200,6 @@ func rawParsePassTests() []uriTest {
 				assert.Equal(t, "user:passwd", u.Authority().UserInfo())
 			},
 		},
-		// This is an invalid UTF8 sequence that SHOULD error, at least in the context of
-		// Ref: https://url.spec.whatwg.org/#percent-encoded-bytes
-		{
-			comment: "check percent encoding with DNS hostname, invalid escape sequence in host segment",
-			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
-			err:     ErrInvalidDNSName,
-		},
-		{
-			comment: "check percent encoding with registered hostname, invalid escape sequence in host segment",
-			uriRaw:  "tel://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
-			err:     ErrInvalidHost,
-		},
-		{
-			comment: "check percent encoding with registered hostname, incomplete escape sequence in host segment",
-			uriRaw:  "https://user:passwd@ex%C3ample.com%:8080/a?query=value#fragment",
-			err:     ErrInvalidDNSName,
-		},
 	}
 }
 
@@ -1238,5 +1221,33 @@ func rawParseUserInfoTests() []uriTest {
 func rawParseFailTests() []uriTest {
 	// other failures not already caught by the other test cases
 	// (atm empty)
-	return nil
+	return []uriTest{
+		{
+			comment: "invalid scheme (should not be escaped)",
+			uriRaw:  "inv%25alidscheme://www.example.com",
+			err:     ErrInvalidScheme,
+		},
+		// This is an invalid UTF8 sequence that SHOULD error, at least in the context of
+		// Ref: https://url.spec.whatwg.org/#percent-encoded-bytes
+		{
+			comment: "invalid query (invalid escape sequence)",
+			uriRaw:  "http://www.example.org/hello/world.txt/?id=5&pa{}%rt=three#there-you-go",
+			err:     ErrInvalidQuery,
+		},
+		{
+			comment: "check percent encoding with DNS hostname, invalid escape sequence in host segment",
+			uriRaw:  "https://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
+			err:     ErrInvalidDNSName,
+		},
+		{
+			comment: "check percent encoding with registered hostname, invalid escape sequence in host segment",
+			uriRaw:  "tel://user:passwd@ex%C3ample.com:8080/a?query=value#fragment",
+			err:     ErrInvalidHost,
+		},
+		{
+			comment: "check percent encoding with registered hostname, incomplete escape sequence in host segment",
+			uriRaw:  "https://user:passwd@ex%C3ample.com%:8080/a?query=value#fragment",
+			err:     ErrInvalidDNSName,
+		},
+	}
 }
