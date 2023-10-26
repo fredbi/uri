@@ -14,6 +14,8 @@ import (
 // in case you need specific schemes to validate the host as a DNS name.
 //
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+//
+// Adopt Trie lookup
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
 	case "aaa":
@@ -62,7 +64,7 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "ipp", "ipps":
 		return true
-	case "irc":
+	case "irc", "irc6", "ircs":
 		return true
 	case "jms":
 		return true
@@ -71,6 +73,8 @@ var UsesDNSHostValidation = func(scheme string) bool {
 	case "mailto":
 		return true
 	case "mid":
+		return true
+	case "msrp", "msrps":
 		return true
 	case "nfs":
 		return true
@@ -86,7 +90,7 @@ var UsesDNSHostValidation = func(scheme string) bool {
 		return true
 	case "rmi":
 		return true
-	case "rtsp":
+	case "rtsp", "rtsps", "rtspu":
 		return true
 	case "rsync":
 		return true

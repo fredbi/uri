@@ -27,7 +27,11 @@ func (u uri) DefaultPort() int {
 	return int(defaultPortForScheme(strings.ToLower(u.scheme)))
 }
 
-// Reference: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+// References:
+// * https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+// * https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+//
+// Also: https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
 func defaultPortForScheme(scheme string) uint64 {
 	switch scheme {
 	case "aaa":
@@ -72,12 +76,16 @@ func defaultPortForScheme(scheme string) uint64 {
 		return 143
 	case "ipp", "ipps":
 		return 631
-	case "irc":
-		return 194
+	case "irc", "irc6":
+		return 6667
+	case "ircs":
+		return 6697
 	case "ldap":
 		return 389
 	case "mailto":
 		return 25
+	case "msrp", "msrps":
+		return 2855
 	case "nfs":
 		return 2049
 	case "nntp":
@@ -92,7 +100,7 @@ func defaultPortForScheme(scheme string) uint64 {
 		return 6379
 	case "rmi":
 		return 1098
-	case "rtsp":
+	case "rtsp", "rtsps", "rtspu":
 		return 554
 	case "rsync":
 		return 873
