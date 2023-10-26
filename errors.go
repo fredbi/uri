@@ -53,3 +53,11 @@ func (e ipError) Error() string {
 		return ""
 	}
 }
+
+func (u uri) Err() error {
+	return u.err
+}
+
+func (a authorityInfo) Err() error {
+	return a.err
+}

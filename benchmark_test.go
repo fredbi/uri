@@ -91,23 +91,28 @@ func Benchmark_String(b *testing.B) {
 	tests := []*uri{
 		{
 			"foo", "//example.com:8042/over/there", "name=ferret", "nose",
-			authorityInfo{"//", "", "example.com", "8042", "/over/there", ip},
+			authorityInfo{"//", "", "example.com", "8042", "/over/there", ip, nil},
+			nil,
 		},
 		{
 			"http", "//httpbin.org/get", "utf8=\xe2\x98\x83", "",
-			authorityInfo{"//", "", "httpbin.org", "", "/get", ip},
+			authorityInfo{"//", "", "httpbin.org", "", "/get", ip, nil},
+			nil,
 		},
 		{
 			"mailto", "user@domain.com", "", "",
-			authorityInfo{"//", "user", "domain.com", "", "", ip},
+			authorityInfo{"//", "user", "domain.com", "", "", ip, nil},
+			nil,
 		},
 		{
 			"ssh", "//user@git.openstack.org:29418/openstack/keystone.git", "", "",
-			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip},
+			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip, nil},
+			nil,
 		},
 		{
 			"https", "//willo.io/", "", "yolo",
-			authorityInfo{"//", "", "willo.io", "", "/", ip},
+			authorityInfo{"//", "", "willo.io", "", "/", ip, nil},
+			nil,
 		},
 	}
 
