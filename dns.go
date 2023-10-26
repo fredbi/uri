@@ -14,10 +14,14 @@ import (
 // in case you need specific schemes to validate the host as a DNS name.
 //
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
-//
-// Adopt Trie lookup
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
+	// prioritize early exit on most commonly used schemes
+	case "https", "http":
+		return true
+	case "file":
+		return false
+		// less commonly used schemes
 	case "aaa":
 		return true
 	case "aaas":
@@ -49,10 +53,6 @@ var UsesDNSHostValidation = func(scheme string) bool {
 	case "gopher":
 		return true
 	case "h323":
-		return true
-	case "http":
-		return true
-	case "https":
 		return true
 	case "iax":
 		return true

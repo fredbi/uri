@@ -120,3 +120,23 @@ func Benchmark_String(b *testing.B) {
 	}
 	fmt.Fprintln(io.Discard, s)
 }
+
+func Benchmark_DNSSchemes(b *testing.B) {
+	var found bool
+	schemes := schemesWithDNS()
+	for i := 0; i < 100; i++ {
+		schemes = append(schemes, "nowhere")
+	}
+
+	// NOTE: at this moment, an attempt to use a map[uint32]struct{] jointly with a hash
+	// performs about 3-4x slower (FNV1a, CRC) than the plan switch.
+	b.Run("with switch", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			scheme := schemes[i%len(schemes)]
+			found = UsesDNSHostValidation(scheme)
+		}
+		fmt.Fprintln(io.Discard, found)
+	})
+}
