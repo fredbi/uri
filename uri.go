@@ -386,7 +386,7 @@ func (u *uri) validateScheme(scheme string) error {
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
 //	query = *( pchar / "/" / "?" )
 func (u *uri) validateQuery(query string) error {
-	if err := validateUnreservedWithExtra(query, isQueryOrFragmentExtraRune); err != nil {
+	if err := validateUnreservedWithExtra(query, queryOrFragmentCharSet); err != nil {
 		return errorsJoin(ErrInvalidQuery, err)
 	}
 
@@ -401,7 +401,7 @@ func (u *uri) validateQuery(query string) error {
 //
 // fragment    = *( pchar / "/" / "?" )
 func (u *uri) validateFragment(fragment string) error {
-	if err := validateUnreservedWithExtra(fragment, isQueryOrFragmentExtraRune); err != nil {
+	if err := validateUnreservedWithExtra(fragment, queryOrFragmentCharSet); err != nil {
 		return errorsJoin(ErrInvalidFragment, err)
 	}
 
@@ -521,7 +521,7 @@ func (a authorityInfo) validatePath(path string) error {
 		}
 
 		if pos > previousPos {
-			if err := validateUnreservedWithExtra(path[previousPos:pos], isPcharExtraRune); err != nil {
+			if err := validateUnreservedWithExtra(path[previousPos:pos], pcharCharSet); err != nil {
 				return errorsJoin(
 					ErrInvalidPath,
 					err,
@@ -533,7 +533,7 @@ func (a authorityInfo) validatePath(path string) error {
 	}
 
 	if previousPos < len(path) { // don't care if the last char was a separator
-		if err := validateUnreservedWithExtra(path[previousPos:], isPcharExtraRune); err != nil {
+		if err := validateUnreservedWithExtra(path[previousPos:], pcharCharSet); err != nil {
 			return errorsJoin(
 				ErrInvalidPath,
 				err,
@@ -608,7 +608,7 @@ func validateHostForScheme(host string, schemes ...string) error {
 
 func validateRegisteredHostForScheme(host string) error {
 	// RFC 3986 registered name
-	if err := validateUnreservedWithExtra(host, nil); err != nil {
+	if err := validateUnreservedWithExtra(host, unreservedAndSubDelimsCharSet); err != nil {
 		return errorsJoin(
 			ErrInvalidRegisteredName,
 			err,
@@ -654,7 +654,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 //
 // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
 func (a authorityInfo) validateUserInfo(userinfo string) error {
-	if err := validateUnreservedWithExtra(userinfo, isUserInfoExtraRune); err != nil {
+	if err := validateUnreservedWithExtra(userinfo, userInfoCharSet); err != nil {
 		return errorsJoin(
 			ErrInvalidUserInfo,
 			err,

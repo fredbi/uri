@@ -3,6 +3,7 @@ module github.com/fredbi/uri
 go 1.19
 
 require (
+	github.com/bits-and-blooms/bitset v1.10.0
 	github.com/pkg/profile v1.7.0
 	github.com/stretchr/testify v1.8.4
 )

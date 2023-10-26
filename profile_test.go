@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/pkg/profile"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParseWithProfile(t *testing.T) {
 	const (
 		profDir = "prof"
-		n       = 1000
+		n       = 100000
 	)
 
 	t.Run("collect CPU profile", func(t *testing.T) {
@@ -52,8 +51,9 @@ func runProfile(t *testing.T, n int) {
 				}
 
 				u, err := Parse(testCase.uriRaw)
-				require.NoErrorf(t, err, "unexpected error for %q", testCase.uriRaw)
-				require.NotEmpty(t, u)
+				if u == nil || err != nil {
+					t.Fatalf("unexpected error for %q", testCase.uriRaw)
+				}
 			}
 		}
 	}
