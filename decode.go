@@ -163,8 +163,9 @@ func isHex[T byte | rune](c T) bool {
 		return true
 	case 'A' <= c && c <= 'F':
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func isNotDigit[T rune | byte](r T) bool {
@@ -173,6 +174,10 @@ func isNotDigit[T rune | byte](r T) bool {
 
 func isDigit[T rune | byte](r T) bool {
 	return r >= '0' && r <= '9'
+}
+
+func isASCIILetter[T byte | rune](c T) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 func isNumerical(input string) bool {

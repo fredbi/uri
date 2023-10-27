@@ -18,7 +18,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 // URI represents a general RFC3986 URI.
@@ -369,28 +368,36 @@ func (u *uri) Validate() error {
 // validateScheme verifies the correctness of the scheme part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.1
+// scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 //
-//	scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-//
-// NOTE: scheme is not supposed to contain any percent-encoded sequence.
-//
-// TODO(fredbi): verify the IRI RFC to check if unicode is allowed in scheme.
+// NOTE: the scheme is not supposed to contain any percent-encoded sequence.
 func (u *uri) validateScheme(scheme string) error {
 	if len(scheme) < 2 {
 		return ErrInvalidScheme
 	}
 
-	for i, r := range scheme {
-		if i == 0 {
-			if !unicode.IsLetter(r) {
-				return ErrInvalidScheme
-			}
+	c := scheme[0]
+	if !isASCIILetter(c) {
+		return errorsJoin(
+			ErrInvalidScheme,
+			fmt.Errorf("an URI scheme must start with an ASCII letter"),
+		)
+	}
 
-			continue
-		}
-
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '+' && r != '-' && r != '.' {
-			return ErrInvalidScheme
+	for i := 1; i < len(scheme); i++ {
+		c := scheme[i]
+		switch {
+		case isDigit(c):
+			// ok
+		case isASCIILetter(c):
+		// ok
+		case c == '+' || c == '-' || c == '.':
+		// ok
+		default:
+			return errorsJoin(
+				ErrInvalidScheme,
+				fmt.Errorf("invalid character %q found in scheme", c),
+			)
 		}
 	}
 
