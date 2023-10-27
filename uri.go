@@ -14,68 +14,10 @@ package uri
 
 import (
 	"fmt"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 )
-
-// URI represents a general RFC3986 URI.
-type URI interface {
-	// Scheme the URI conforms to.
-	Scheme() string
-
-	// Authority information for the URI, including the "//" prefix.
-	Authority() Authority
-
-	// Query returns a map of key/value pairs of all parameters
-	// in the query string of the URI.
-	Query() url.Values
-
-	// Fragment returns the fragment (component preceded by '#') in the
-	// URI if there is one.
-	Fragment() string
-
-	// Builder returns a Builder that can be used to modify the URI.
-	Builder() Builder
-
-	// String representation of the URI
-	String() string
-
-	// Validate the different components of the URI
-	Validate() error
-
-	// Is the current port the default for this scheme?
-	IsDefaultPort() bool
-	// Default port for this scheme
-	DefaultPort() int
-
-	Err() error
-}
-
-// Authority information that a URI contains
-// as specified by RFC3986.
-//
-// Username and password are given by UserInfo().
-type Authority interface {
-	UserInfo() string
-	Host() string
-	Port() string
-	Path() string
-	String() string
-	Validate(...string) error
-
-	IsIP() bool
-	IPAddr() netip.Addr
-
-	Err() error
-}
-
-type ipType struct {
-	isIPv4      bool
-	isIPv6      bool
-	isIPvFuture bool
-}
 
 const (
 	// char and string literals.
@@ -104,9 +46,38 @@ var (
 	userInfoExtraRunes        = append(pcharExtraRunes, colonMark)
 )
 
+type (
+	// URI represents a general RFC3986 URI.
+	URI struct {
+		// raw components
+		err      error
+		scheme   string
+		hierPart string
+		query    string
+		fragment string
+
+		// parsed components
+		authority Authority
+	}
+
+	// Authority information that a URI contains
+	// as specified by RFC3986.
+	//
+	// Username and password are given by UserInfo().
+	Authority struct {
+		err      error
+		prefix   string
+		userinfo string
+		host     string
+		port     string
+		path     string
+		ipType   // after host validation, the IP type is more precisely identified
+	}
+)
+
 // IsURI tells if a URI is valid according to RFC3986/RFC397.
-func IsURI(raw string) bool {
-	_, err := Parse(raw)
+func IsURI(raw string, opts ...Option) bool {
+	_, err := Parse(raw, opts...)
 	return err == nil
 }
 
@@ -114,25 +85,35 @@ func IsURI(raw string) bool {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-4.1 and
 // https://www.rfc-editor.org/rfc/rfc3986#section-4.2
-func IsURIReference(raw string) bool {
-	_, err := ParseReference(raw)
+func IsURIReference(raw string, opts ...Option) bool {
+	_, err := ParseReference(raw, opts...)
 	return err == nil
 }
 
 // Parse attempts to parse a URI.
+//
 // It returns an error if the URI is not RFC3986-compliant.
-func Parse(raw string) (URI, error) {
-	return parse(raw, false)
+func Parse(raw string, opts ...Option) (URI, error) {
+	o, redeem := applyURIOptions(opts)
+	defer func() { redeem(o) }()
+
+	return parse(raw, o)
 }
 
 // ParseReference attempts to parse a URI relative reference.
 //
 // It returns an error if the URI is not RFC3986-compliant.
-func ParseReference(raw string) (URI, error) {
-	return parse(raw, true)
+//
+// Notice that this call is syntactically equivalent to Parse(raw, WithURIReference(true)),
+// but slightly more efficient.
+func ParseReference(raw string, opts ...Option) (URI, error) {
+	o, redeem := applyURIReferenceOptions(opts)
+	defer func() { redeem(o) }()
+
+	return parse(raw, o)
 }
 
-func parse(raw string, withURIReference bool) (URI, error) {
+func parse(raw string, o *options) (URI, error) {
 	var (
 		scheme string
 		curr   int
@@ -147,16 +128,17 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		// ":", "?", "#"
 		err := errorsJoin(
 			ErrInvalidURI,
-			fmt.Errorf("URI cannot start by a ':', '?' or '#' mark"),
+			fmt.Errorf("URI cannot start by a '%q', '%q' or '%q' mark", colonMark, questionMark, fragmentMark),
 		)
-		return nil, err
+		return URI{err: err}, err
 	}
 
 	if schemeEnd == 1 {
-		return nil, errorsJoin(
+		err := errorsJoin(
 			ErrInvalidScheme,
 			fmt.Errorf("scheme has a minimum length of 2 characters"),
 		)
+		return URI{err: err}, err
 	}
 
 	if hierPartEnd == 1 || queryEnd == 1 {
@@ -165,7 +147,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			ErrInvalidURI,
 			fmt.Errorf("invalid combination of start markers, near: %q", raw[:2]),
 		)
-		return nil, err
+		return URI{err: err}, err
 	}
 
 	if hierPartEnd > 0 && hierPartEnd < schemeEnd || queryEnd > 0 && queryEnd < schemeEnd {
@@ -175,7 +157,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			ErrInvalidURI,
 			fmt.Errorf("URI part markers %q,%q,%q are in an incorrect order, near: %q", colonMark, questionMark, fragmentMark, raw[mini:maxi]),
 		)
-		return nil, err
+		return URI{err: err}, err
 	}
 
 	if queryEnd > 0 && queryEnd < hierPartEnd {
@@ -189,18 +171,21 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		scheme = raw[curr:schemeEnd]
 		if schemeEnd+1 == len(raw) {
 			// trailing ':' (e.g. http:)
-			u := &uri{
+			u := URI{
 				scheme: scheme,
 			}
 
-			return u, u.Validate()
+			u.authority.ipType, u.err = u.validate(o)
+
+			return u, u.err
 		}
-	case !withURIReference:
+	case !o.withURIReference:
 		// scheme is required for URI
-		return nil, errorsJoin(
+		err := errorsJoin(
 			ErrNoSchemeFound,
 			fmt.Errorf("for URI (not URI reference), the scheme is required"),
 		)
+		return URI{err: err}, err
 	case isRelative:
 		// scheme is optional for URI references.
 		//
@@ -216,32 +201,36 @@ func parse(raw string, withURIReference bool) (URI, error) {
 			hierPartEnd = len(raw)
 		}
 
-		authority, err := parseAuthority(raw[curr:hierPartEnd])
+		authority, err := parseAuthority(raw[curr:hierPartEnd], o)
 		if err != nil {
 			err = errorsJoin(ErrInvalidURI, err)
-			return nil, err
+			return URI{err: err}, err
 		}
 
-		u := &uri{
+		u := URI{
 			scheme:    scheme,
 			hierPart:  raw[curr:hierPartEnd],
 			authority: authority,
 		}
 
-		return u, u.Validate()
+		u.authority.ipType, u.err = u.validate(o)
+		u.authority.err = u.err
+
+		return u, u.err
 	}
 
 	var (
 		hierPart, query, fragment string
-		authority                 authorityInfo
+		authority                 Authority
 		err                       error
 	)
 
 	if hierPartEnd > 0 {
 		hierPart = raw[curr:hierPartEnd]
-		authority, err = parseAuthority(hierPart)
+		authority, err = parseAuthority(hierPart, o)
 		if err != nil {
-			return nil, errorsJoin(ErrInvalidURI, err)
+			err = errorsJoin(ErrInvalidURI, err)
+			return URI{err: err}, err
 		}
 
 		if hierPartEnd+1 < len(raw) {
@@ -260,23 +249,23 @@ func parse(raw string, withURIReference bool) (URI, error) {
 	if queryEnd == len(raw)-1 && hierPartEnd < 0 {
 		// trailing #,  no query "?"
 		hierPart = raw[curr:queryEnd]
-		authority, err = parseAuthority(hierPart)
+		authority, err = parseAuthority(hierPart, o)
 		if err != nil {
-			return nil, errorsJoin(ErrInvalidURI, err)
+			err = errorsJoin(ErrInvalidURI, err)
+			return URI{err: err}, err
 		}
 
-		u := &uri{
+		u := URI{
 			scheme:    scheme,
 			hierPart:  hierPart,
 			authority: authority,
 			query:     query,
 		}
 
-		if err = u.Validate(); err != nil {
-			return nil, err
-		}
+		u.authority.ipType, u.err = u.validate(o)
+		u.authority.err = u.err // TODO: should propagate only if this is an authority error
 
-		return u, nil
+		return u, u.err
 	}
 
 	if queryEnd > 0 {
@@ -284,9 +273,10 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		if hierPartEnd < 0 {
 			// no query
 			hierPart = raw[curr:queryEnd]
-			authority, err = parseAuthority(hierPart)
+			authority, err = parseAuthority(hierPart, o)
 			if err != nil {
-				return nil, errorsJoin(ErrInvalidURI, err)
+				err = errorsJoin(ErrInvalidURI, err)
+				return URI{err: err}, err
 			}
 		}
 
@@ -295,7 +285,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		}
 	}
 
-	u := &uri{
+	u := URI{
 		scheme:    scheme,
 		hierPart:  hierPart,
 		query:     query,
@@ -303,85 +293,95 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		authority: authority,
 	}
 
-	return u, u.Validate()
-}
+	u.authority.ipType, u.err = u.validate(o)
+	u.authority.err = u.err
 
-type uri struct {
-	// raw components
-	scheme   string
-	hierPart string
-	query    string
-	fragment string
-
-	// parsed components
-	authority authorityInfo
-	err       error
-}
-
-func (u *uri) URI() URI {
-	return u
+	return u, u.err
 }
 
 // Scheme for this URI.
-func (u *uri) Scheme() string {
+func (u URI) Scheme() string {
 	return u.scheme
 }
 
 // Authority information for the URI, including the "//" prefix.
-func (u *uri) Authority() Authority {
-	u.ensureAuthorityExists()
-	return &u.authority
+func (u URI) Authority() Authority {
+	return u.authority.withEnsuredAuthority()
 }
 
 // Query returns a map of key/value pairs of all parameters
 // in the query string of the URI.
 //
 //	This map contains the parsed query parameters like standard lib URL.Query().
-func (u *uri) Query() url.Values {
+func (u URI) Query() url.Values {
 	v, _ := url.ParseQuery(u.query)
 	return v
 }
 
-func (u *uri) Fragment() string {
+// Fragment returns the fragment (component preceded by '#') in the
+// URI if there is one.
+func (u URI) Fragment() string {
 	return u.fragment
 }
 
-// Validate checks that all parts of a URI abide by allowed characters.
-func (u *uri) Validate() error {
-	if u.scheme != "" {
-		if err := u.validateScheme(u.scheme); err != nil {
-			u.err = err
-			return err
+// String representation of an URI.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
+func (u URI) String() string {
+	buf := strings.Builder{}
+	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
+
+	if len(u.scheme) > 0 {
+		buf.WriteString(u.scheme)
+		buf.WriteByte(colonMark)
+	}
+
+	u.authority.buildString(&buf)
+
+	if len(u.query) > 0 {
+		buf.WriteByte(questionMark)
+		buf.WriteString(u.query)
+	}
+
+	if len(u.fragment) > 0 {
+		buf.WriteByte(fragmentMark)
+		buf.WriteString(u.fragment)
+	}
+
+	return buf.String()
+}
+
+// Err is the inner error state of the URI parsing.
+func (u URI) Err() error {
+	return u.err
+}
+
+// validate checks that all parts of a URI abide by allowed characters.
+func (u URI) validate(o *options) (ipType, error) {
+	if u.scheme != "" && o.validationFlags&flagValidateScheme > 0 {
+		if err := u.validateScheme(u.scheme, o); err != nil {
+			return ipType{}, err
 		}
 	}
 
-	if u.query != "" {
-		if err := u.validateQuery(u.query); err != nil {
-			u.err = err
-			return err
+	if u.query != "" && o.validationFlags&flagValidateQuery > 0 {
+		if err := u.validateQuery(u.query, o); err != nil {
+			return ipType{}, err
 		}
 	}
 
-	if u.fragment != "" {
-		if err := u.validateFragment(u.fragment); err != nil {
-			u.err = err
-			u.err = err
-			return err
+	if u.fragment != "" && o.validationFlags&flagValidateFragment > 0 {
+		if err := u.validateFragment(u.fragment, o); err != nil {
+			return ipType{}, err
 		}
 	}
 
 	if u.hierPart != "" {
-		ip, err := u.authority.validate(u.scheme)
-		if err != nil {
-			u.err = err
-			u.authority.err = err
-			return err
-		}
-		u.authority.ipType = ip
+		return u.authority.validateForScheme(u.scheme, o)
 	}
 
 	// empty hierpart case
-	return nil
+	return ipType{}, nil
 }
 
 // validateScheme verifies the correctness of the scheme part.
@@ -390,7 +390,7 @@ func (u *uri) Validate() error {
 // scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
 //
 // NOTE: the scheme is not supposed to contain any percent-encoded sequence.
-func (u *uri) validateScheme(scheme string) error {
+func (u URI) validateScheme(scheme string, _ *options) error {
 	if len(scheme) < 2 {
 		return ErrInvalidScheme
 	}
@@ -428,8 +428,8 @@ func (u *uri) validateScheme(scheme string) error {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.4
 //
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
-//	query = *( pchar / "/" / "?" )
-func (u *uri) validateQuery(query string) error {
+//	fragment    = *( pchar / "/" / "?" )
+func (u URI) validateQuery(query string, _ *options) error {
 	if err := validateUnreservedWithExtra(query, queryOrFragmentExtraRunes); err != nil {
 		return errorsJoin(ErrInvalidQuery, err)
 	}
@@ -442,9 +442,8 @@ func (u *uri) validateQuery(query string) error {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.5
 //
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
-//
-// fragment    = *( pchar / "/" / "?" )
-func (u *uri) validateFragment(fragment string) error {
+//	fragment    = *( pchar / "/" / "?" )
+func (u URI) validateFragment(fragment string, _ *options) error {
 	if err := validateUnreservedWithExtra(fragment, queryOrFragmentExtraRunes); err != nil {
 		return errorsJoin(ErrInvalidFragment, err)
 	}
@@ -452,21 +451,11 @@ func (u *uri) validateFragment(fragment string) error {
 	return nil
 }
 
-type authorityInfo struct {
-	prefix   string
-	userinfo string
-	host     string
-	port     string
-	path     string
-	ipType
-	err error
-}
-
-func (a authorityInfo) UserInfo() string { return a.userinfo }
-func (a authorityInfo) Host() string     { return a.host }
-func (a authorityInfo) Port() string     { return a.port }
-func (a authorityInfo) Path() string     { return a.path }
-func (a authorityInfo) String() string {
+func (a Authority) UserInfo() string { return a.userinfo }
+func (a Authority) Host() string     { return a.host }
+func (a Authority) Port() string     { return a.port }
+func (a Authority) Path() string     { return a.path }
+func (a Authority) String() string {
 	buf := strings.Builder{}
 	buf.Grow(a.builderSize())
 	a.buildString(&buf)
@@ -474,11 +463,11 @@ func (a authorityInfo) String() string {
 	return buf.String()
 }
 
-func (a authorityInfo) builderSize() int {
+func (a Authority) builderSize() int {
 	return len(a.prefix) + len(a.userinfo) + 1 + len(a.host) + 2 + len(a.port) + 1 + len(a.path)
 }
 
-func (a authorityInfo) buildString(buf *strings.Builder) {
+func (a Authority) buildString(buf *strings.Builder) {
 	buf.WriteString(a.prefix)
 	buf.WriteString(a.userinfo)
 
@@ -500,47 +489,34 @@ func (a authorityInfo) buildString(buf *strings.Builder) {
 	buf.WriteString(a.path)
 }
 
-// Validate the Authority part.
+// validate the Authority part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
-func (a *authorityInfo) Validate(schemes ...string) error {
-	ip, err := a.validate(schemes...)
-
-	if err != nil {
-		a.err = err
-
-		return err
-	}
-	a.ipType = ip
-
-	return nil
-}
-
-func (a authorityInfo) validate(schemes ...string) (ipType, error) {
+func (a Authority) validateForScheme(scheme string, o *options) (ipType, error) {
 	var ip ipType
 
-	if a.path != "" {
-		if err := a.validatePath(a.path); err != nil {
+	if a.path != "" && o.validationFlags&flagValidatePath > 0 {
+		if err := a.validatePath(a.path, o); err != nil {
 			return ip, err
 		}
 	}
 
-	if a.host != "" {
+	if a.host != "" && o.validationFlags&flagValidateHost > 0 {
 		var err error
-		ip, err = a.validateHost(a.host, a.isIPv6, schemes...)
+		ip, err = a.validateHost(a.host, a.isIPv6, scheme, o)
 		if err != nil {
 			return ip, err
 		}
 	}
 
-	if a.port != "" {
-		if err := a.validatePort(a.port, a.host); err != nil {
+	if a.port != "" && o.validationFlags&flagValidatePort > 0 {
+		if err := a.validatePort(a.port, a.host, o); err != nil {
 			return ip, err
 		}
 	}
 
-	if a.userinfo != "" {
-		if err := a.validateUserInfo(a.userinfo); err != nil {
+	if a.userinfo != "" && o.validationFlags&flagValidateUserInfo > 0 {
+		if err := a.validateUserInfo(a.userinfo, o); err != nil {
 			return ip, err
 		}
 	}
@@ -551,7 +527,7 @@ func (a authorityInfo) validate(schemes ...string) (ipType, error) {
 // validatePath validates the path part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.3
-func (a authorityInfo) validatePath(path string) error {
+func (a Authority) validatePath(path string, _ *options) error {
 	if a.host == "" && a.port == "" && len(path) >= 2 && path[0] == slashMark && path[1] == slashMark {
 		return errorsJoin(
 			ErrInvalidPath,
@@ -594,7 +570,7 @@ func (a authorityInfo) validatePath(path string) error {
 // validateHost validates the host part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.2
-func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string) (ipType, error) {
+func (a Authority) validateHost(host string, isIPv6 bool, scheme string, o *options) (ipType, error) {
 	// check for IP addresses
 	// * IPv6 are required to be enclosed within '[]' (isIPv6=true), if an IPv6 zone is present,
 	// there is a trailing escaped sequence, but the heading IPv6 literal must not be escaped.
@@ -620,7 +596,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 	}
 
 	// This is not an IP: check for host DNS or registered name
-	if err := validateHostForScheme(host, schemes...); err != nil {
+	if err := validateHostForScheme(host, scheme, o); err != nil {
 		return ipType{}, errorsJoin(
 			ErrInvalidHost,
 			err,
@@ -637,23 +613,17 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 //
 // dns-name see: https://www.rfc-editor.org/rfc/rfc1034, https://www.rfc-editor.org/info/rfc5890
 // reg-name    = *( unreserved / pct-encoded / sub-delims )
-func validateHostForScheme(host string, schemes ...string) error {
-	for _, scheme := range schemes {
-		if UsesDNSHostValidation(scheme) {
-			if err := validateDNSHostForScheme(host); err != nil {
-				return err
-			}
-		}
-
-		if err := validateRegisteredHostForScheme(host); err != nil {
+func validateHostForScheme(host string, scheme string, o *options) error {
+	if UsesDNSHostValidation(scheme) {
+		if err := validateDNSHostForScheme(host); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return validateRegisteredHostForScheme(host, o)
 }
 
-func validateRegisteredHostForScheme(host string) error {
+func validateRegisteredHostForScheme(host string, _ *options) error {
 	// RFC 3986 registered name
 	if err := validateUnreservedWithExtra(host, nil); err != nil {
 		return errorsJoin(
@@ -670,7 +640,7 @@ func validateRegisteredHostForScheme(host string) error {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.3
 //
 // port = *DIGIT
-func (a authorityInfo) validatePort(port, host string) error {
+func (a Authority) validatePort(port, host string, _ *options) error {
 	const maxPort uint64 = 65535
 
 	if !isNumerical(port) {
@@ -700,7 +670,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 //
 // userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
-func (a authorityInfo) validateUserInfo(userinfo string) error {
+func (a Authority) validateUserInfo(userinfo string, _ *options) error {
 	if err := validateUnreservedWithExtra(userinfo, userInfoExtraRunes); err != nil {
 		return errorsJoin(
 			ErrInvalidUserInfo,
@@ -711,7 +681,7 @@ func (a authorityInfo) validateUserInfo(userinfo string) error {
 	return nil
 }
 
-func parseAuthority(hier string) (authorityInfo, error) {
+func parseAuthority(hier string, _ *options) (Authority, error) {
 	// as per RFC 3986 Section 3.6
 	var (
 		prefix, userinfo, host, port, path string
@@ -754,12 +724,12 @@ func parseAuthority(hier string) (authorityInfo, error) {
 				rawHost = rawHost[closingbracket+1:]
 				isIPv6 = true
 			case closingbracket > bracket:
-				return authorityInfo{}, errorsJoin(
+				return Authority{}, errorsJoin(
 					ErrInvalidHostAddress,
 					fmt.Errorf("empty IPv6 address"),
 				)
 			default:
-				return authorityInfo{}, errorsJoin(
+				return Authority{}, errorsJoin(
 					ErrInvalidHostAddress,
 					fmt.Errorf("mismatched square brackets"),
 				)
@@ -780,49 +750,18 @@ func parseAuthority(hier string) (authorityInfo, error) {
 		}
 	}
 
-	return authorityInfo{
+	return Authority{
 		prefix:   prefix,
 		userinfo: userinfo,
 		host:     host,
 		port:     port,
 		path:     path,
-		ipType:   ipType{isIPv6: isIPv6},
+		ipType:   ipType{isIPv6: isIPv6}, // provisional flag
 	}, nil
 }
 
-func (u *uri) ensureAuthorityExists() {
-	if u.authority.userinfo != "" ||
-		u.authority.host != "" ||
-		u.authority.port != "" {
-		u.authority.prefix = authorityPrefix
-	}
-}
-
-// String representation of an URI.
-//
-// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
-func (u *uri) String() string {
-	buf := strings.Builder{}
-	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
-
-	if len(u.scheme) > 0 {
-		buf.WriteString(u.scheme)
-		buf.WriteByte(colonMark)
-	}
-
-	u.authority.buildString(&buf)
-
-	if len(u.query) > 0 {
-		buf.WriteByte(questionMark)
-		buf.WriteString(u.query)
-	}
-
-	if len(u.fragment) > 0 {
-		buf.WriteByte(fragmentMark)
-		buf.WriteString(u.fragment)
-	}
-
-	return buf.String()
+func (a Authority) Err() error {
+	return a.err
 }
 
 func miniMaxi(vals ...int) (int, int) {

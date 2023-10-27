@@ -9,14 +9,20 @@ import (
 	"unicode/utf8"
 )
 
+type ipType struct {
+	isIPv4      bool
+	isIPv6      bool
+	isIPvFuture bool
+}
+
 // IsIP indicates if the URI host was specified using an IP address (v4 or v6).
-func (a authorityInfo) IsIP() bool {
+func (a Authority) IsIP() bool {
 	// IPvFuture won't parse as a netip.Addr
 	return a.isIPv4 || (a.isIPv6 && !a.isIPvFuture)
 }
 
 // IPAddr returns the parsed netip.Addr whenever IsIP is true (or the zero value whenever false).
-func (a authorityInfo) IPAddr() netip.Addr {
+func (a Authority) IPAddr() netip.Addr {
 	if !a.IsIP() {
 		return netip.Addr{}
 	}

@@ -40,11 +40,9 @@ func Test_Builder(t *testing.T) {
 					"failed to parse uri: %v", err,
 				)
 
-				nuri := auri.Builder().SetUserInfo(test.name).SetHost("newdomain.com").SetScheme("http").SetPort("443")
-				zuri, ok := nuri.(URI)
-				require.True(t, ok)
-				assert.Equal(t, "//"+test.name+"@newdomain.com:443", zuri.Authority().String())
-				assert.Equal(t, "443", nuri.URI().Authority().Port())
+				nuri := auri.WithUserInfo(test.name).WithHost("newdomain.com").WithScheme("http").WithPort("443")
+				assert.Equal(t, "//"+test.name+"@newdomain.com:443", nuri.Authority().String())
+				assert.Equal(t, "443", nuri.Authority().Port())
 				val := nuri.String()
 
 				assert.Equalf(t, val, test.uriChanged,
@@ -52,29 +50,29 @@ func Test_Builder(t *testing.T) {
 					"test: %#v", test.uriChanged,
 					"values don't match: %v != %v (actual: %#v, expected: %#v)", val, test.uriChanged,
 				)
-				assert.Equal(t, "http", nuri.URI().Scheme())
+				assert.Equal(t, "http", nuri.Scheme())
 
-				_ = nuri.SetPath("/abcd")
-				assert.Equal(t, "/abcd", nuri.URI().Authority().Path())
+				nuri = nuri.WithPath("/abcd")
+				assert.Equal(t, "/abcd", nuri.Authority().Path())
 
-				_ = nuri.SetQuery("a=b&x=5").SetFragment("chapter")
-				assert.Equal(t, url.Values{"a": []string{"b"}, "x": []string{"5"}}, nuri.URI().Query())
-				assert.Equal(t, "chapter", nuri.URI().Fragment())
-				assert.Equal(t, test.uriChanged+"/abcd?a=b&x=5#chapter", nuri.URI().String())
+				nuri = nuri.WithQuery("a=b&x=5").WithFragment("chapter")
+				assert.Equal(t, url.Values{"a": []string{"b"}, "x": []string{"5"}}, nuri.Query())
+				assert.Equal(t, "chapter", nuri.Fragment())
+				assert.Equal(t, test.uriChanged+"/abcd?a=b&x=5#chapter", nuri.String())
 				assert.Equal(t, test.uriChanged+"/abcd?a=b&x=5#chapter", nuri.String())
 			})
 		}
 	})
 
 	t.Run("when building from scratch", func(t *testing.T) {
-		u, _ := Parse("http:")
-		b := u.Builder()
+		u, err := Parse("http:")
+		require.NoError(t, err)
 
 		require.Empty(t, u.Authority())
 		assert.Equal(t, "", u.Authority().UserInfo())
 
-		b = b.SetUserInfo("user:pwd").SetHost("newdomain").SetPort("444")
-		assert.Equal(t, "http://user:pwd@newdomain:444", b.String())
+		v := u.WithUserInfo("user:pwd").WithHost("newdomain").WithPort("444")
+		assert.Equal(t, "http://user:pwd@newdomain:444", v.String())
 	})
 
 	t.Run("when overriding with an invalid value", func(t *testing.T) {
@@ -82,9 +80,9 @@ func Test_Builder(t *testing.T) {
 
 		u, err := Parse(uriRaw)
 		require.NoError(t, err)
-		b := u.Builder()
-		b.SetPort("X8080")
+
+		u = u.WithPort("X8080")
 		auth := u.Authority()
-		require.Error(t, auth.Validate())
+		require.Error(t, auth.Err())
 	})
 }

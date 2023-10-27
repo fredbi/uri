@@ -88,31 +88,31 @@ func benchParseURLStdLib(payload []string) func(*testing.B) {
 
 func Benchmark_String(b *testing.B) {
 	var ip ipType
-	tests := []*uri{
+	tests := []URI{
 		{
+			nil,
 			"foo", "//example.com:8042/over/there", "name=ferret", "nose",
-			authorityInfo{"//", "", "example.com", "8042", "/over/there", ip, nil},
-			nil,
+			Authority{nil, "//", "", "example.com", "8042", "/over/there", ip},
 		},
 		{
+			nil,
 			"http", "//httpbin.org/get", "utf8=\xe2\x98\x83", "",
-			authorityInfo{"//", "", "httpbin.org", "", "/get", ip, nil},
-			nil,
+			Authority{nil, "//", "", "httpbin.org", "", "/get", ip},
 		},
 		{
+			nil,
 			"mailto", "user@domain.com", "", "",
-			authorityInfo{"//", "user", "domain.com", "", "", ip, nil},
-			nil,
+			Authority{nil, "//", "user", "domain.com", "", "", ip},
 		},
 		{
+			nil,
 			"ssh", "//user@git.openstack.org:29418/openstack/keystone.git", "", "",
-			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip, nil},
-			nil,
+			Authority{nil, "//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip},
 		},
 		{
-			"https", "//willo.io/", "", "yolo",
-			authorityInfo{"//", "", "willo.io", "", "/", ip, nil},
 			nil,
+			"https", "//willo.io/", "", "yolo",
+			Authority{nil, "//", "", "willo.io", "", "/", ip},
 		},
 	}
 

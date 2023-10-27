@@ -21,8 +21,31 @@ which provides a workable but loose implementation of the RFC for URLs.
 
 ## What's new?
 
-### V1.2 announcement
+### v2.0.0
 
+**Breaking changes**
+
+Most users should not be affected by these breaking changes.
+
+* `URI` and `Authority` become concrete types. Interfaces are discarded.
+* `Parse()` and `ParseReference()` now return a `URI` value, no longer a pointer.
+* The `Validate() error` methods have been removed: validation is carried out when parsing only.
+* The `Builder` interface and `URI.Builder()` function have been removed.
+  `URI` exposes fluent builder methods instead.
+* `UsesDNSHostValidation()` has been removed and replaced by a private default function.
+  Override is possible via `Option`. Similar custom behavior may be achieved for `DefaultPort()`.
+
+**Features**
+
+* `Parse(string, ...Option)` and `ParseReference(string, ...Option)` now support options to tune the
+  `URI` validation.
+
+**Performances**
+
+* perf: massive improvement due to giving up pointers (parsing now is a zero-allocation operation).
+  This boosts `Parse()` to be even faster than the standard library `net/url.Parse()`.
+
+### V1.2 announcement
 To do before I cut a v1.2.0:
 * [] handle empty fragment, empty query.
   Ex: `https://host?` is not equivalent to `http://host`.
@@ -123,11 +146,14 @@ V2 is getting closer to completion. It comes with:
 
 ### Building
 
-The exposed type `URI` can be transformed into a fluent `Builder` to set the parts of an URI.
+The exposed type `URI` can be used as a fluent builder to set the parts of an URI.
 
 ```go
 	aURI, _ := Parse("mailto://user@domain.com")
-	newURI := auri.Builder().SetUserInfo(test.name).SetHost("newdomain.com").SetScheme("http").SetPort("443")
+	newURI := auri.SetUserInfo(test.name).
+        SetHost("newdomain.com").
+        SetScheme("http").
+        SetPort("443")
 ```
 
 ### Canonicalization

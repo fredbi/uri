@@ -265,3 +265,61 @@ Benchmark_String
 Benchmark_String-16    	457095075	        79.87 ns/op	      48 B/op	       1 allocs/op
 PASS
 
+## After removing all allocs with v2
+
+Yay!
+
+go test -v -run Bench -benchtime 30s -bench Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+
+Benchmark_Parse/with_URI_simple_payload-16         	138432174	       259.9 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       320.4 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	137858967	       261.1 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       304.4 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	128555860	       284.5 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	97581129	       368.1 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	444468163	        80.65 ns/op	      48 B/op	       1 allocs/op
+Benchmark_DNSSchemes
+Benchmark_DNSSchemes/with_switch
+Benchmark_DNSSchemes/with_switch-16                	1000000000	         3.044 ns/op	       0 B/op	       0 allocs/op
+PASS
+
+# V2 with options setup
+
+go test -v -run Bench -benchtime 30s -bench Bench
+goos: linux
+goarch: amd64
+pkg: github.com/fredbi/uri
+cpu: AMD Ryzen 7 5800X 8-Core Processor             
+Benchmark_Parse
+Benchmark_Parse/with_URI_simple_payload
+Benchmark_Parse/with_URI_simple_payload-16         	137914446	       257.1 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_simple_payload
+Benchmark_Parse/with_URL_simple_payload-16         	100000000	       319.7 ns/op	     168 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_mixed_payload
+Benchmark_Parse/with_URI_mixed_payload-16          	138111548	       262.6 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_mixed_payload
+Benchmark_Parse/with_URL_mixed_payload-16          	100000000	       302.5 ns/op	     163 B/op	       1 allocs/op
+Benchmark_Parse/with_URI_payload_with_IPs
+Benchmark_Parse/with_URI_payload_with_IPs-16       	128662461	       282.0 ns/op	       0 B/op	       0 allocs/op
+Benchmark_Parse/with_URL_payload_with_IPs
+Benchmark_Parse/with_URL_payload_with_IPs-16       	99240152	       365.3 ns/op	     176 B/op	       1 allocs/op
+Benchmark_String
+Benchmark_String-16                                	446582586	        80.53 ns/op	      48 B/op	       1 allocs/op
+Benchmark_DNSSchemes
+Benchmark_DNSSchemes/with_switch
+Benchmark_DNSSchemes/with_switch-16                	1000000000	         3.030 ns/op	       0 B/op	       0 allocs/op
+PASS
+
+

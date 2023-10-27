@@ -9,7 +9,7 @@ import (
 // the defaut port defined for this scheme (if any).
 //
 // For example, an URI like http://host:8080 would return false, since 80 is the default http port.
-func (u uri) IsDefaultPort() bool {
+func (u URI) IsDefaultPort() bool {
 	if len(u.authority.port) == 0 {
 		return true
 	}
@@ -23,7 +23,7 @@ func (u uri) IsDefaultPort() bool {
 // or zero if no such default is known.
 //
 // For example, for scheme "https", the default port is 443.
-func (u uri) DefaultPort() int {
+func (u URI) DefaultPort() int {
 	return int(defaultPortForScheme(strings.ToLower(u.scheme)))
 }
 

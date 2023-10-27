@@ -14,6 +14,7 @@ import (
 // in case you need specific schemes to validate the host as a DNS name.
 //
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+// TODO: now pass it as an option. make private
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
 	// prioritize early exit on most commonly used schemes
