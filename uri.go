@@ -145,7 +145,11 @@ func parse(raw string, withURIReference bool) (URI, error) {
 	// exclude pathological input
 	if schemeEnd == 0 || hierPartEnd == 0 || queryEnd == 0 {
 		// ":", "?", "#"
-		return nil, ErrInvalidURI
+		err := errorsJoin(
+			ErrInvalidURI,
+			fmt.Errorf("URI cannot start by a ':', '?' or '#' mark"),
+		)
+		return nil, err
 	}
 
 	if schemeEnd == 1 {
@@ -157,12 +161,21 @@ func parse(raw string, withURIReference bool) (URI, error) {
 
 	if hierPartEnd == 1 || queryEnd == 1 {
 		// ".:", ".?", ".#"
-		return nil, ErrInvalidURI
+		err := errorsJoin(
+			ErrInvalidURI,
+			fmt.Errorf("invalid combination of start markers, near: %q", raw[:2]),
+		)
+		return nil, err
 	}
 
 	if hierPartEnd > 0 && hierPartEnd < schemeEnd || queryEnd > 0 && queryEnd < schemeEnd {
 		// e.g. htt?p: ; h#ttp: ..
-		return nil, ErrInvalidURI
+		mini, maxi := miniMaxi(hierPartEnd, schemeEnd, queryEnd, schemeEnd)
+		err := errorsJoin(
+			ErrInvalidURI,
+			fmt.Errorf("URI part markers %q,%q,%q are in an incorrect order, near: %q", colonMark, questionMark, fragmentMark, raw[mini:maxi]),
+		)
+		return nil, err
 	}
 
 	if queryEnd > 0 && queryEnd < hierPartEnd {
@@ -205,7 +218,8 @@ func parse(raw string, withURIReference bool) (URI, error) {
 
 		authority, err := parseAuthority(raw[curr:hierPartEnd])
 		if err != nil {
-			return nil, errorsJoin(ErrInvalidURI, err)
+			err = errorsJoin(ErrInvalidURI, err)
+			return nil, err
 		}
 
 		u := &uri{
@@ -308,16 +322,21 @@ func (u *uri) URI() URI {
 	return u
 }
 
+// Scheme for this URI.
 func (u *uri) Scheme() string {
 	return u.scheme
 }
 
+// Authority information for the URI, including the "//" prefix.
 func (u *uri) Authority() Authority {
 	u.ensureAuthorityExists()
 	return &u.authority
 }
 
-// Query returns parsed query parameters like standard lib URL.Query().
+// Query returns a map of key/value pairs of all parameters
+// in the query string of the URI.
+//
+//	This map contains the parsed query parameters like standard lib URL.Query().
 func (u *uri) Query() url.Values {
 	v, _ := url.ParseQuery(u.query)
 	return v
@@ -781,7 +800,7 @@ func (u *uri) ensureAuthorityExists() {
 
 // String representation of an URI.
 //
-// * https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
 func (u *uri) String() string {
 	buf := strings.Builder{}
 	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
@@ -804,4 +823,31 @@ func (u *uri) String() string {
 	}
 
 	return buf.String()
+}
+
+func miniMaxi(vals ...int) (int, int) {
+	var mini, maxi int
+	if len(vals) == 0 {
+		return mini, maxi
+	}
+
+	mini, maxi = vals[0], vals[0]
+
+	for _, val := range vals[1:] {
+		if val < mini {
+			mini = val
+		}
+		if val > maxi {
+			maxi = val
+		}
+	}
+
+	if mini < 0 {
+		mini = 0
+	}
+	if maxi < 0 {
+		maxi = 0
+	}
+
+	return mini, maxi
 }
