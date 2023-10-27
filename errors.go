@@ -1,18 +1,29 @@
 package uri
 
-// Error from the github.com/fredbi/uri module.
-type Error interface {
-	error
-}
+type (
+	// Error from the github.com/fredbi/uri module.
+	Error interface {
+		error
+	}
+)
 
-// Validation errors.
+// Generic validation errors.
 var (
-	ErrNoSchemeFound         = Error(newErr("no scheme found in URI"))
-	ErrInvalidURI            = Error(newErr("not a valid URI"))
-	ErrInvalidCharacter      = Error(newErr("invalid character in URI"))
-	ErrInvalidScheme         = Error(newErr("invalid scheme in URI"))
-	ErrInvalidQuery          = Error(newErr("invalid query string in URI"))
-	ErrInvalidFragment       = Error(newErr("invalid fragment in URI"))
+	ErrInvalidURI       = Error(newErr("not a valid URI"))
+	ErrInvalidCharacter = Error(newErr("invalid character in URI"))
+	ErrInvalidEscaping  = Error(newErr("invalid percent-escaping sequence"))
+)
+
+// URI-specific errors
+var (
+	ErrNoSchemeFound   = Error(newErr("no scheme found in URI"))
+	ErrInvalidScheme   = Error(newErr("invalid scheme in URI"))
+	ErrInvalidQuery    = Error(newErr("invalid query string in URI"))
+	ErrInvalidFragment = Error(newErr("invalid fragment in URI"))
+)
+
+// Authority-specific errors
+var (
 	ErrInvalidPath           = Error(newErr("invalid path in URI"))
 	ErrInvalidHost           = Error(newErr("invalid host in URI"))
 	ErrInvalidPort           = Error(newErr("invalid port in URI"))
@@ -21,8 +32,32 @@ var (
 	ErrInvalidHostAddress    = Error(newErr("invalid address for host"))
 	ErrInvalidRegisteredName = Error(newErr("invalid host (registered name)"))
 	ErrInvalidDNSName        = Error(newErr("invalid host (DNS name)"))
-	ErrInvalidEscaping       = Error(newErr("invalid percent-escaping sequence"))
 )
+
+/*
+// tells when a validation error originates from the authority part.
+func isAuthorityErr(err error) bool {
+	switch err {
+	case ErrInvalidPath:
+		return true
+	case ErrInvalidHost:
+		return true
+	case ErrInvalidPort:
+		return true
+	case ErrMissingHost:
+		return true
+	case ErrInvalidHostAddress:
+		return true
+	case ErrInvalidRegisteredName:
+		return true
+	case ErrInvalidDNSName:
+		return true
+	default:
+		log.Printf("error Is with: %q", spew.Sdump(err))
+		return false
+	}
+}
+*/
 
 type ipError uint8
 
