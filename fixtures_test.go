@@ -1063,6 +1063,10 @@ func rawParsePassTests() []uriTest {
 			uriRaw:  "http://www.詹姆斯.org/",
 		},
 		{
+			comment: "Host with number at the start",
+			uriRaw:  "http://www.4chan.com/",
+		},
+		{
 			comment: "path",
 			uriRaw:  "http://www.example.org/hello/world.txt",
 		},
