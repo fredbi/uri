@@ -2,6 +2,7 @@ package uri
 
 import (
 	"fmt"
+	"strconv"
 	"unicode"
 	"unicode/utf8"
 )
@@ -299,7 +300,14 @@ func validateFirstRuneInSegment(s string) (rune, int, error) {
 		offset += consumed
 	}
 
-	if !unicode.IsLetter(r) {
+	// If it is a number we fail here to fall back to IP parsing
+	if _, err := strconv.Atoi(string([]rune{r}) + s[offset:]); err == nil {
+		return utf8.RuneError, 0, errorsJoin(
+			ErrInvalidDNSName,
+			fmt.Errorf("hostname cannot just be a number"))
+	}
+
+	if !unicode.IsLetter(r) && (!unicode.IsDigit(r) || offset >= len(s)) {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
 			fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", s, r),
