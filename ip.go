@@ -1,7 +1,6 @@
 package uri
 
 import (
-	"errors"
 	"fmt"
 	"net/netip"
 	"net/url"
@@ -27,7 +26,10 @@ func (a authorityInfo) IPAddr() netip.Addr {
 	return addr
 }
 
+//nolint:dupword,mnd // false positive in the BNF comment
+//nolint:mnd // straightforward interpretation, no need to define a constant
 func validateIPv4(host string) error {
+	//
 	// check for IPv4 address
 	//
 	// The host SHOULD check
@@ -126,7 +128,7 @@ func validateIPv6(host string) error {
 	case idx == 0:
 		return errorsJoin(
 			ErrInvalidHostAddress,
-			errors.New("only the zoneID of an IPv6 literal may be percent-encoded"),
+			fmt.Errorf("only the zoneID of an IPv6 literal may be percent-encoded: %w", ErrURI),
 		)
 	case idx > 0:
 		ipv6WithoutZone = host[:idx]
@@ -141,7 +143,7 @@ func validateIPv6(host string) error {
 	if err != nil {
 		return errorsJoin(
 			ErrInvalidHostAddress,
-			fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q", host),
+			fmt.Errorf("a square-bracketed host part should be a valid IPv6 address: %q: %w", host, ErrURI),
 		)
 	}
 
@@ -149,7 +151,7 @@ func validateIPv6(host string) error {
 		// RFC3986 stipulates that only IPv6 addresses are within square brackets
 		return errorsJoin(
 			ErrInvalidHostAddress,
-			fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q", host),
+			fmt.Errorf("a square-bracketed host part should not contain an IPv4 address: %q: %w", host, ErrURI),
 		)
 	}
 
@@ -161,7 +163,7 @@ func validateIPv6(host string) error {
 	if len(zoneID) < 4 || zoneID[1] != '2' || zoneID[2] != '5' {
 		return errorsJoin(
 			ErrInvalidHostAddress,
-			fmt.Errorf("IPv6 zoneID separator in URI must be percent-encoded with %%25, but got: %q", zoneID),
+			fmt.Errorf("IPv6 zoneID separator in URI must be percent-encoded with %%25, but got: %q: %w", zoneID, ErrURI),
 		)
 	}
 
@@ -169,6 +171,7 @@ func validateIPv6(host string) error {
 		return errorsJoin(
 			ErrInvalidHostAddress,
 			fmt.Errorf("invalid IPv6 zoneID %q: %w", zoneID, err),
+			ErrURI,
 		)
 	}
 
@@ -192,7 +195,7 @@ func validateIPvFuture(address string) error {
 	for offset < len(address) {
 		r, size := utf8.DecodeRuneInString(address[offset:])
 		if r == utf8.RuneError {
-			return fmt.Errorf("invalid UTF8 rune near: %q", address[offset:])
+			return fmt.Errorf("invalid UTF8 rune near: %q: %w", address[offset:], ErrURI)
 		}
 		offset += size
 
@@ -203,8 +206,8 @@ func validateIPvFuture(address string) error {
 		}
 
 		if !isHex(r) {
-			return errors.New(
-				"invalid IP vFuture format: expect an hexadecimal version tag",
+			return fmt.Errorf(
+				"invalid IP vFuture format: expect an hexadecimal version tag: %w", ErrURI,
 			)
 		}
 
@@ -212,13 +215,13 @@ func validateIPvFuture(address string) error {
 	}
 
 	if !foundHexDigits || !foundDot {
-		return errors.New(
-			"invalid IP vFuture format: expect a '.' after an hexadecimal version tag",
+		return fmt.Errorf(
+			"invalid IP vFuture format: expect a '.' after an hexadecimal version tag: %w", ErrURI,
 		)
 	}
 
 	if offset >= len(address) {
-		return errors.New("invalid IP vFuture format: expect a non-empty address after the version tag")
+		return fmt.Errorf("invalid IP vFuture format: expect a non-empty address after the version tag: %w", ErrURI)
 	}
 
 	// TODO: wrong because IpvFuture is not escaped

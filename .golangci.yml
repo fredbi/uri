@@ -1,39 +1,65 @@
-linters-settings:
-  govet:
-    check-shadowing: true
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 200
-  goconst:
-    min-len: 3
-    min-occurrences: 2
-  forbidigo:
-    forbid:
-      - ^print.*$
-      - 'fmt\.Print.*'
-  gocognit:
-    min-complexity: 65 # This is super high value. We should gradually lower it to 30-40.
-
+version: "2"
 linters:
+  default: all
+  disable:
+    - cyclop
+    - depguard
+    - errchkjson
+    - errorlint
+    - exhaustruct
+    - forcetypeassert
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - godot
+    - godox
+    - gosmopolitan
+    - inamedparam
+    - ireturn
+    - lll
+    - musttag
+    - noinlineerr
+    - nestif
+    - nlreturn
+    - nonamedreturns
+    - paralleltest
+    - recvcheck
+    - testpackage
+    - thelper
+    - tparallel
+    - unparam
+    - varnamelen
+    - whitespace
+    - wrapcheck
+    - wsl
+    - wsl_v5
+  settings:
+    dupl:
+      threshold: 200
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    gocyclo:
+      min-complexity: 55
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
   enable:
     - gofmt
     - goimports
-    - bodyclose
-    - dupl
-    - forbidigo
-    - gocognit
-    - gocritic
-    - goimports
-    - gosec
-    - nakedret
-     #- nolintlint
-    - revive
-    - stylecheck
-    - unconvert
-    - unparam
-  disable:
-    - maligned
-    - lll
-    - gochecknoinits
-    - gochecknoglobals
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -29,3 +29,13 @@ jobs:
       uses: shogo82148/actions-goveralls@v1
       with:
         path-to-profile: coverage.out
+        parallel: true
+
+  finish:
+    name: 'Complete test coverage upload'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true

@@ -60,7 +60,7 @@ func rawParseReferenceTests() []uriTest {
 			asserter: func(t testing.TB, u URI) {
 				assert.Equal(t, "host.domain.com", u.Authority().Host())
 				assert.Equal(t, "8080", u.Authority().Port())
-				assert.Equal(t, "", u.Authority().Path())
+				assert.Empty(t, u.Authority().Path())
 				assert.Equal(t, "x/a/b", u.Query().Get("query"))
 			},
 		},
@@ -1149,7 +1149,7 @@ func rawParsePassTests() []uriTest {
 			comment: "should assert path and fragment (2)",
 			uriRaw:  "mailto://u:p@host.domain.com?#ahahah",
 			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "", u.Authority().Path())
+				assert.Empty(t, u.Authority().Path())
 				assert.Empty(t, u.Query())
 				assert.Equal(t, "ahahah", u.Fragment())
 			},
@@ -1161,7 +1161,7 @@ func rawParsePassTests() []uriTest {
 				assert.Equal(t, "/c=GB", u.Authority().Path())
 				nuri := u.(*uri)
 				assert.Equal(t, "objectClass?one", nuri.query) // TODO(fred): use Query() and url.Values
-				assert.Equal(t, "", u.Fragment())
+				assert.Empty(t, u.Fragment())
 			},
 		},
 		{
@@ -1171,7 +1171,7 @@ func rawParsePassTests() []uriTest {
 				assert.Equal(t, "/hello/world.txt/", u.Authority().Path())
 				nuri := u.(*uri)
 				assert.Equal(t, "id=5&part=three", nuri.query)
-				assert.Equal(t, "", u.Fragment())
+				assert.Empty(t, u.Fragment())
 			},
 		},
 		{

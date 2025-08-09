@@ -55,8 +55,8 @@ func payloads() []payload {
 func Benchmark_Parse(b *testing.B) {
 	// URI.Parse() and net/url.URL.Parse() side by side on different payloads
 	for _, payload := range payloads() {
-		b.Run(fmt.Sprintf("with URI %s", payload.name), benchParseWithPayload(payload.tests))
-		b.Run(fmt.Sprintf("with URL %s", payload.name), benchParseURLStdLib(payload.tests))
+		b.Run("with URI "+payload.name, benchParseWithPayload(payload.tests))
+		b.Run("with URL "+payload.name, benchParseURLStdLib(payload.tests))
 	}
 }
 
@@ -91,27 +91,27 @@ func Benchmark_String(b *testing.B) {
 	tests := []*uri{
 		{
 			"foo", "//example.com:8042/over/there", "name=ferret", "nose",
-			authorityInfo{"//", "", "example.com", "8042", "/over/there", ip, nil},
+			authorityInfo{ip, "//", "", "example.com", "8042", "/over/there", nil},
 			nil,
 		},
 		{
 			"http", "//httpbin.org/get", "utf8=\xe2\x98\x83", "",
-			authorityInfo{"//", "", "httpbin.org", "", "/get", ip, nil},
+			authorityInfo{ip, "//", "", "httpbin.org", "", "/get", nil},
 			nil,
 		},
 		{
 			"mailto", "user@domain.com", "", "",
-			authorityInfo{"//", "user", "domain.com", "", "", ip, nil},
+			authorityInfo{ip, "//", "user", "domain.com", "", "", nil},
 			nil,
 		},
 		{
 			"ssh", "//user@git.openstack.org:29418/openstack/keystone.git", "", "",
-			authorityInfo{"//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", ip, nil},
+			authorityInfo{ip, "//", "user", "git.openstack.org", "29418", "/openstack/keystone.git", nil},
 			nil,
 		},
 		{
 			"https", "//willo.io/", "", "yolo",
-			authorityInfo{"//", "", "willo.io", "", "/", ip, nil},
+			authorityInfo{ip, "//", "", "willo.io", "", "/", nil},
 			nil,
 		},
 	}

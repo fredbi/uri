@@ -54,7 +54,7 @@ func TestValidateHostForScheme(t *testing.T) {
 		"www.詹{姆}斯.org/",
 		fmt.Sprintf("a.%s.c", strings.Repeat("b", 64)),
 		fmt.Sprintf("a.%sb.c", string([]rune{utf8.RuneError})),
-		fmt.Sprintf("%sa.b.c", string([]rune{utf8.RuneError})),
+		fmt.Sprintf("%sa.b.c", string([]rune{utf8.RuneError})), //nolint:perfsprint // we prefer consistency with the above lines over performance
 		".a.b.c",
 		"a.b.c.d%2b",
 		"a.b.c.%",

@@ -48,9 +48,7 @@ func Test_Builder(t *testing.T) {
 				val := nuri.String()
 
 				assert.Equalf(t, val, test.uriChanged,
-					"val: %#v", val,
-					"test: %#v", test.uriChanged,
-					"values don't match: %v != %v (actual: %#v, expected: %#v)", val, test.uriChanged,
+					"actual: %#v, expected: %#v", val, test.uriChanged,
 				)
 				assert.Equal(t, "http", nuri.URI().Scheme())
 
@@ -71,7 +69,7 @@ func Test_Builder(t *testing.T) {
 		b := u.Builder()
 
 		require.Empty(t, u.Authority())
-		assert.Equal(t, "", u.Authority().UserInfo())
+		assert.Empty(t, u.Authority().UserInfo())
 
 		b = b.SetUserInfo("user:pwd").SetHost("newdomain").SetPort("444")
 		assert.Equal(t, "http://user:pwd@newdomain:444", b.String())

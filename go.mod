@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/pkg/profile v1.7.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
