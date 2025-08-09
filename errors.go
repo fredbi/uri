@@ -7,6 +7,9 @@ type (
 	}
 )
 
+// Sentinel error
+var ErrURI = Error(newErr("URI error"))
+
 // Generic validation errors.
 var (
 	ErrInvalidURI       = Error(newErr("not a valid URI"))

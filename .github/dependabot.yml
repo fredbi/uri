@@ -1,8 +1,39 @@
 version: 2
 updates:
-  - package-ecosystem: "gomod" # See documentation for possible values
+  - package-ecosystem: "gomod"
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+      day: "thursday"
     assignees:
       - fredbi
+    open-pull-requests-limit: 2          # <- default is 5
+    groups:                              # <- group all github actions updates in a single PR
+      # 1. development-dependencies are auto-merged
+      # 2. other-dependencies are not auto-merged and require human attention
+      development-dependencies:
+        patterns:
+          - "github.com/stretchr/testify"
+          - "github.com/pkg/profile"
+
+      golang.org-dependencies:
+        patterns:
+          - "golang.org/*"
+
+      other-dependencies:
+        exclude-patterns:
+          - "github.com/stretchr/testify"
+          - "github.com/pkg/profile"
+          - "golang.org/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+    open-pull-requests-limit: 2          # <- default is 5
+    groups:                              # <- group all github actions updates in a single PR
+      # 1. github action updates are auto-merged
+      ci-actions:
+        patterns:
+          - "*"

@@ -4,16 +4,14 @@ package uri
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrUri(t *testing.T) {
-	e := errorsJoin(ErrInvalidURI, errSentinelTest, fmt.Errorf("cause"))
+	e := errorsJoin(ErrInvalidURI, errSentinelTest, errors.New("cause")) //nolint: err113 // it is okay for a test error
 
-	assert.True(t, errors.Is(ErrInvalidURI, ErrInvalidURI))
-	assert.True(t, errors.Is(e, ErrInvalidURI))
-	assert.True(t, errors.Is(e, errSentinelTest))
+	require.ErrorIs(t, e, ErrInvalidURI)
+	require.ErrorIs(t, e, errSentinelTest)
 }

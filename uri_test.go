@@ -238,7 +238,7 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 				})
 
 				t.Run("assert authority.Validate", func(t *testing.T) {
-					require.Nil(t, auth.Validate(actual.Scheme()))
+					require.NoError(t, auth.Validate(actual.Scheme()))
 				})
 			})
 		}

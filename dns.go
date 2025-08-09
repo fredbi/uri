@@ -147,13 +147,13 @@ func validateDNSHostForScheme(host string) error {
 		// may or may not be valid for the same host.
 		return errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("hostname is longer than the allowed 255 bytes"),
+			fmt.Errorf("hostname is longer than the allowed 255 bytes: %w", ErrURI),
 		)
 	}
 	if len(host) == 0 {
 		return errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("a DNS name should not contain an empty segment"),
+			fmt.Errorf("a DNS name should not contain an empty segment: %w", ErrURI),
 		)
 	}
 
@@ -190,7 +190,7 @@ func validateHostSegment(s string) (rune, int, error) {
 		if r == utf8.RuneError {
 			return utf8.RuneError, 0, errorsJoin(
 				ErrInvalidDNSName,
-				fmt.Errorf("invalid UTF8 rune near: %q", s),
+				fmt.Errorf("invalid UTF8 rune near: %q: %w", s, ErrURI),
 			)
 		}
 		once = true
@@ -201,7 +201,7 @@ func validateHostSegment(s string) (rune, int, error) {
 				return utf8.RuneError, 0, errorsJoin(
 					ErrInvalidDNSName,
 					errorsJoin(ErrInvalidEscaping,
-						fmt.Errorf("incomplete escape sequence"),
+						fmt.Errorf("incomplete escape sequence: %w", ErrURI),
 					))
 			}
 
@@ -222,13 +222,13 @@ func validateHostSegment(s string) (rune, int, error) {
 			if offset >= len(s) {
 				return utf8.RuneError, 0, errorsJoin(
 					ErrInvalidDNSName,
-					fmt.Errorf("a DNS name should not contain an empty segment"),
+					fmt.Errorf("a DNS name should not contain an empty segment: %w", ErrURI),
 				)
 			}
 			if !unicode.IsLetter(last) && !unicode.IsDigit(last) {
 				return utf8.RuneError, 0, errorsJoin(
 					ErrInvalidDNSName,
-					fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", s, last),
+					fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q: %w", s, last, ErrURI),
 				)
 			}
 
@@ -238,14 +238,14 @@ func validateHostSegment(s string) (rune, int, error) {
 		if offset > maxSegmentLength {
 			return utf8.RuneError, 0, errorsJoin(
 				ErrInvalidDNSName,
-				fmt.Errorf("a segment in a DNS name should not be longer than 63 bytes: %q", s[:offset]),
+				fmt.Errorf("a segment in a DNS name should not be longer than 63 bytes: %q: %w", s[:offset], ErrURI),
 			)
 		}
 
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
 			return utf8.RuneError, 0, errorsJoin(
 				ErrInvalidDNSName,
-				fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q", s, r),
+				fmt.Errorf("a segment in a DNS name must contain only letters, digits or '-': %q contains %q: %w", s, r, ErrURI),
 			)
 		}
 
@@ -256,7 +256,7 @@ func validateHostSegment(s string) (rune, int, error) {
 	if once && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q", s, last),
+			fmt.Errorf("a segment in a DNS name must end with a letter or a digit: %q ends with %q: %w", s, last, ErrURI),
 		)
 	}
 
@@ -270,13 +270,13 @@ func validateFirstRuneInSegment(s string) (rune, int, error) {
 	if r == utf8.RuneError {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("invalid UTF8 rune near: %q", s),
+			fmt.Errorf("invalid UTF8 rune near: %q: %w", s, ErrURI),
 		)
 	}
 	if r == dotSeparator {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("a DNS name should not contain an empty segment"),
+			fmt.Errorf("a DNS name should not contain an empty segment: %w", ErrURI),
 		)
 	}
 	offset += size
@@ -285,7 +285,7 @@ func validateFirstRuneInSegment(s string) (rune, int, error) {
 		if offset >= len(s) {
 			return utf8.RuneError, 0, errorsJoin(
 				errorsJoin(ErrInvalidEscaping,
-					fmt.Errorf("incomplete escape sequence"),
+					fmt.Errorf("incomplete escape sequence: %w", ErrURI),
 				))
 		}
 		unescapedRune, consumed, e := unescapePercentEncoding(s[offset:])
@@ -304,13 +304,13 @@ func validateFirstRuneInSegment(s string) (rune, int, error) {
 	if _, err := strconv.Atoi(string([]rune{r}) + s[offset:]); err == nil {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("hostname cannot just be a number"))
+			fmt.Errorf("hostname cannot just be a number: %w", ErrURI))
 	}
 
 	if !unicode.IsLetter(r) && (!unicode.IsDigit(r) || offset >= len(s)) {
 		return utf8.RuneError, 0, errorsJoin(
 			ErrInvalidDNSName,
-			fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q", s, r),
+			fmt.Errorf("a segment in a DNS name must begin with a letter: %q starts with %q: %w", s, r, ErrURI),
 		)
 	}
 

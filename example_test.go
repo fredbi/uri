@@ -1,4 +1,3 @@
-// nolint: forbidigo
 package uri_test
 
 import (

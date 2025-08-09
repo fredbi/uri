@@ -24,7 +24,7 @@ func (u uri) IsDefaultPort() bool {
 //
 // For example, for scheme "https", the default port is 443.
 func (u uri) DefaultPort() int {
-	return int(defaultPortForScheme(strings.ToLower(u.scheme)))
+	return int(defaultPortForScheme(strings.ToLower(u.scheme))) //nolint:gosec // uint64 -> int conversion is ok: no port overflows a int
 }
 
 // References:
@@ -33,6 +33,7 @@ func (u uri) DefaultPort() int {
 //
 // Also: https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
 func defaultPortForScheme(scheme string) uint64 {
+	//nolint:mnd // no need to define default ports with additional constants
 	switch scheme {
 	case "aaa":
 		return 3868

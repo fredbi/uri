@@ -147,7 +147,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		// ":", "?", "#"
 		err := errorsJoin(
 			ErrInvalidURI,
-			fmt.Errorf("URI cannot start by a ':', '?' or '#' mark"),
+			fmt.Errorf("URI cannot start by a ':', '?' or '#' mark: %w", ErrURI),
 		)
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 	if schemeEnd == 1 {
 		return nil, errorsJoin(
 			ErrInvalidScheme,
-			fmt.Errorf("scheme has a minimum length of 2 characters"),
+			fmt.Errorf("scheme has a minimum length of 2 characters: %w", ErrURI),
 		)
 	}
 
@@ -163,7 +163,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		// ".:", ".?", ".#"
 		err := errorsJoin(
 			ErrInvalidURI,
-			fmt.Errorf("invalid combination of start markers, near: %q", raw[:2]),
+			fmt.Errorf("invalid combination of start markers, near: %q: %w", raw[:2], ErrURI),
 		)
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		mini, maxi := miniMaxi(hierPartEnd, schemeEnd, queryEnd, schemeEnd)
 		err := errorsJoin(
 			ErrInvalidURI,
-			fmt.Errorf("URI part markers %q,%q,%q are in an incorrect order, near: %q", colonMark, questionMark, fragmentMark, raw[mini:maxi]),
+			fmt.Errorf("URI part markers %q,%q,%q are in an incorrect order, near: %q: %w", colonMark, questionMark, fragmentMark, raw[mini:maxi], ErrURI),
 		)
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		// scheme is required for URI
 		return nil, errorsJoin(
 			ErrNoSchemeFound,
-			fmt.Errorf("for URI (not URI reference), the scheme is required"),
+			fmt.Errorf("for URI (not URI reference), the scheme is required: %w", ErrURI),
 		)
 	case isRelative:
 		// scheme is optional for URI references.
@@ -384,6 +384,33 @@ func (u *uri) Validate() error {
 	return nil
 }
 
+// String representation of an URI.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
+func (u *uri) String() string {
+	buf := strings.Builder{}
+	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
+
+	if len(u.scheme) > 0 {
+		buf.WriteString(u.scheme)
+		buf.WriteByte(colonMark)
+	}
+
+	u.authority.buildString(&buf)
+
+	if len(u.query) > 0 {
+		buf.WriteByte(questionMark)
+		buf.WriteString(u.query)
+	}
+
+	if len(u.fragment) > 0 {
+		buf.WriteByte(fragmentMark)
+		buf.WriteString(u.fragment)
+	}
+
+	return buf.String()
+}
+
 // validateScheme verifies the correctness of the scheme part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.1
@@ -391,7 +418,8 @@ func (u *uri) Validate() error {
 //
 // NOTE: the scheme is not supposed to contain any percent-encoded sequence.
 func (u *uri) validateScheme(scheme string) error {
-	if len(scheme) < 2 {
+	const minSchemeLength = 2
+	if len(scheme) < minSchemeLength {
 		return ErrInvalidScheme
 	}
 
@@ -399,7 +427,7 @@ func (u *uri) validateScheme(scheme string) error {
 	if !isASCIILetter(c) {
 		return errorsJoin(
 			ErrInvalidScheme,
-			fmt.Errorf("an URI scheme must start with an ASCII letter"),
+			fmt.Errorf("an URI scheme must start with an ASCII letter: %w", ErrURI),
 		)
 	}
 
@@ -415,7 +443,7 @@ func (u *uri) validateScheme(scheme string) error {
 		default:
 			return errorsJoin(
 				ErrInvalidScheme,
-				fmt.Errorf("invalid character %q found in scheme", c),
+				fmt.Errorf("invalid character %q found in scheme: %w", c, ErrURI),
 			)
 		}
 	}
@@ -453,13 +481,14 @@ func (u *uri) validateFragment(fragment string) error {
 }
 
 type authorityInfo struct {
+	ipType
+
 	prefix   string
 	userinfo string
 	host     string
 	port     string
 	path     string
-	ipType
-	err error
+	err      error
 }
 
 func (a authorityInfo) UserInfo() string { return a.userinfo }
@@ -472,6 +501,22 @@ func (a authorityInfo) String() string {
 	a.buildString(&buf)
 
 	return buf.String()
+}
+
+// Validate the Authority part.
+//
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
+func (a *authorityInfo) Validate(schemes ...string) error {
+	ip, err := a.validate(schemes...)
+
+	if err != nil {
+		a.err = err
+
+		return err
+	}
+	a.ipType = ip
+
+	return nil
 }
 
 func (a authorityInfo) builderSize() int {
@@ -498,22 +543,6 @@ func (a authorityInfo) buildString(buf *strings.Builder) {
 
 	buf.WriteString(a.port)
 	buf.WriteString(a.path)
-}
-
-// Validate the Authority part.
-//
-// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
-func (a *authorityInfo) Validate(schemes ...string) error {
-	ip, err := a.validate(schemes...)
-
-	if err != nil {
-		a.err = err
-
-		return err
-	}
-	a.ipType = ip
-
-	return nil
 }
 
 func (a authorityInfo) validate(schemes ...string) (ipType, error) {
@@ -556,8 +585,8 @@ func (a authorityInfo) validatePath(path string) error {
 		return errorsJoin(
 			ErrInvalidPath,
 			fmt.Errorf(
-				`if a URI does not contain an authority component, then the path cannot begin with two slash characters ("//"): %q`,
-				a.path,
+				`if a URI does not contain an authority component, then the path cannot begin with two slash characters ("//"): %q: %w`,
+				a.path, ErrURI,
 			))
 	}
 
@@ -680,7 +709,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 	if host == "" {
 		return errorsJoin(
 			ErrMissingHost,
-			fmt.Errorf("whenever a port is specified, a host part must be present"),
+			fmt.Errorf("whenever a port is specified, a host part must be present: %w", ErrURI),
 		)
 	}
 
@@ -688,7 +717,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 	if portNum > maxPort {
 		return errorsJoin(
 			ErrInvalidPort,
-			fmt.Errorf("a valid port lies in the range (0-%d)", maxPort),
+			fmt.Errorf("a valid port lies in the range (0-%d): %w", maxPort, ErrURI),
 		)
 	}
 
@@ -756,12 +785,12 @@ func parseAuthority(hier string) (authorityInfo, error) {
 			case closingbracket > bracket:
 				return authorityInfo{}, errorsJoin(
 					ErrInvalidHostAddress,
-					fmt.Errorf("empty IPv6 address"),
+					fmt.Errorf("empty IPv6 address: %w", ErrURI),
 				)
 			default:
 				return authorityInfo{}, errorsJoin(
 					ErrInvalidHostAddress,
-					fmt.Errorf("mismatched square brackets"),
+					fmt.Errorf("mismatched square brackets: %w", ErrURI),
 				)
 			}
 
@@ -796,33 +825,6 @@ func (u *uri) ensureAuthorityExists() {
 		u.authority.port != "" {
 		u.authority.prefix = authorityPrefix
 	}
-}
-
-// String representation of an URI.
-//
-// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
-func (u *uri) String() string {
-	buf := strings.Builder{}
-	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
-
-	if len(u.scheme) > 0 {
-		buf.WriteString(u.scheme)
-		buf.WriteByte(colonMark)
-	}
-
-	u.authority.buildString(&buf)
-
-	if len(u.query) > 0 {
-		buf.WriteByte(questionMark)
-		buf.WriteString(u.query)
-	}
-
-	if len(u.fragment) > 0 {
-		buf.WriteByte(fragmentMark)
-		buf.WriteString(u.fragment)
-	}
-
-	return buf.String()
 }
 
 func miniMaxi(vals ...int) (int, int) {
