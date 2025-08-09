@@ -21,21 +21,21 @@ jobs:
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       - name: Auto-merge dependabot PRs for github actions
-        if: contains(steps.metadata.outputs.dependency-names, 'ci-actions')
+        if: contains(steps.metadata.outputs.dependency-group, 'ci-actions')
         run: gh pr merge --auto --rebase "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       - name: Auto-merge dependabot PRs for development dependencies
-        if: contains(steps.metadata.outputs.dependency-names, 'development-dependencies')
+        if: contains(steps.metadata.outputs.dependency-group, 'development-dependencies')
         run: gh pr merge --auto --rebase "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
       - name: Auto-merge dependabot PRs for golang.org updates
-        if: contains(steps.metadata.outputs.dependency-names, 'golang.org')
+        if: contains(steps.metadata.outputs.dependency-group, 'golang.org-dependencies')
         run: gh pr merge --auto --rebase "$PR_URL"
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
