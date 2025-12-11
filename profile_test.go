@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/pkg/profile"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 func TestParseWithProfile(t *testing.T) {
