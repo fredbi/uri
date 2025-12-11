@@ -1,14 +1,16 @@
 # uri
-![Lint](https://github.com/fredbi/uri/actions/workflows/01-golang-lint.yaml/badge.svg)
-![CI](https://github.com/fredbi/uri/actions/workflows/02-test.yaml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/fredbi/uri/badge.svg?branch=master)](https://coveralls.io/github/fredbi/uri?branch=master)
-![Vulnerability Check](https://github.com/fredbi/uri/actions/workflows/03-govulncheck.yaml/badge.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/fredbi/uri)](https://goreportcard.com/report/github.com/fredbi/uri)
 
-![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/fredbi/uri)
-[![Go Reference](https://pkg.go.dev/badge/github.com/fredbi/uri.svg)](https://pkg.go.dev/github.com/fredbi/uri)
-[![license](http://img.shields.io/badge/license/License-MIT-yellow.svg)](https://raw.githubusercontent.com/fredbi/uri/master/LICENSE.md)
+<!-- Badges: status  -->
+[![Tests][test-badge]][test-url] [![Coverage][cov-badge]][cov-url] [![CI vuln scan][vuln-scan-badge]][vuln-scan-url] [![CodeQL][codeql-badge]][codeql-url]
+<!-- Badges: release & docker images  -->
+<!-- Badges: code quality  -->
+<!-- Badges: license & compliance -->
+[![Release][release-badge]][release-url] [![Go Report Card][gocard-badge]][gocard-url] [![CodeFactor Grade][codefactor-badge]][codefactor-url] [![License][license-badge]][license-url]
+<!-- Badges: documentation & support -->
+<!-- Badges: others & stats -->
+[![GoDoc][godoc-badge]][godoc-url] [![go version][goversion-badge]][goversion-url] ![Top language][top-badge] ![Commits since latest release][commits-badge]
 
+---
 
 Package `uri` is meant to be an RFC 3986 compliant URI builder, parser and validator for `golang`.
 
@@ -67,6 +69,12 @@ V2 is getting closer to completion. It comes with:
 * perf: slight improvement. Now only 8-25% slower than net/url.Parse, depending on the workload
 
 ### [Older releases](#release-notes)
+
+## Quick start
+
+```sh
+go get github.com/fredbi/uri
+```
 
 ## Usage
 
@@ -200,6 +208,13 @@ Perl, Python, Scala, .NET and the Go url standard library.
 
 * A lot of improvements and suggestions have been brought by the incredible guys at [`fyne-io`](https://github.com/fyne-io). Thanks all.
 
+## License
+
+This library is distributed under the MIT license.
+
+`SPDX-FileCopyrightText: Copyright 2025 Frédéric BIDON`
+[`SPDX-License-Identifier: MIT`](./LICENSE.md)
+
 ## Release notes
 
 ### v1.1.0
@@ -241,3 +256,35 @@ Major refactoring to enhance code readability, esp. for testing code.
 * Refactored test suite
 * Added support for fuzzing, dependabots & codeQL scans
 
+<!-- Badges: status  -->
+[test-badge]: https://github.com/fredbi/uri/actions/workflows/go-test.yml/badge.svg
+[test-url]: https://github.com/fredbi/uri/actions/workflows/go-test.yml
+[cov-badge]: https://codecov.io/gh/fredbi/uri/branch/master/graph/badge.svg
+[cov-url]: https://codecov.io/gh/fredbi/uri
+[vuln-scan-badge]: https://github.com/fredbi/uri/actions/workflows/scanner.yml/badge.svg
+[vuln-scan-url]: https://github.com/fredbi/uri/actions/workflows/scanner.yml
+[codeql-badge]: https://github.com/fredbi/uri/actions/workflows/codeql.yml/badge.svg
+[codeql-url]: https://github.com/fredbi/uri/actions/workflows/codeql.yml
+<!-- Badges: release & docker images  -->
+[release-badge]: https://badge.fury.io/gh/fredbi%2Furi.svg
+[release-url]: https://badge.fury.io/gh/fredbi%2Furi
+[gomod-badge]: https://badge.fury.io/go/github.com%2Ffredbi%2Furi.svg
+[gomod-url]: https://badge.fury.io/go/github.com%2Ffredbi%2Furi
+<!-- Badges: code quality  -->
+[gocard-badge]: https://goreportcard.com/badge/github.com/fredbi/uri
+[gocard-url]: https://goreportcard.com/report/github.com/fredbi/uri
+[codefactor-badge]: https://img.shields.io/codefactor/grade/github/fredbi/uri
+[codefactor-url]: https://www.codefactor.io/repository/github/fredbi/uri
+<!-- Badges: documentation & support -->
+[doc-badge]: https://img.shields.io/badge/doc-site-blue?link=https%3A%2F%2Fgoswagger.io%2Ffredbi%2F
+[doc-url]: https://goswagger.io/fredbi
+[godoc-badge]: https://pkg.go.dev/badge/github.com/fredbi/uri
+[godoc-url]: http://pkg.go.dev/github.com/fredbi/uri
+<!-- Badges: license & compliance -->
+[license-badge]: http://img.shields.io/badge/license-Apache%20v2-orange.svg
+[license-url]: https://github.com/fredbi/uri/?tab=Apache-2.0-1-ov-file#readme
+<!-- Badges: others & stats -->
+[goversion-badge]: https://img.shields.io/github/go-mod/go-version/fredbi/uri
+[goversion-url]: https://github.com/fredbi/uri/blob/master/go.mod
+[top-badge]: https://img.shields.io/github/languages/top/fredbi/uri
+[commits-badge]: https://img.shields.io/github/commits-since/fredbi/uri/latest
