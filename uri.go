@@ -56,7 +56,7 @@ type URI interface {
 // Authority information that a URI contains
 // as specified by RFC3986.
 //
-// Username and password are given by UserInfo().
+// Username and password (if present) are given by UserInfo().
 type Authority interface {
 	UserInfo() string
 	Host() string
@@ -104,13 +104,13 @@ var (
 	userInfoExtraRunes        = append(pcharExtraRunes, colonMark)
 )
 
-// IsURI tells if a URI is valid according to RFC3986/RFC397.
+// IsURI reports whether a URI is valid according to RFC3986/RFC3987.
 func IsURI(raw string) bool {
 	_, err := Parse(raw)
 	return err == nil
 }
 
-// IsURIReference tells if a URI reference is valid according to RFC3986/RFC397
+// IsURIReference reports whether a URI reference is valid according to RFC3986/RFC3987.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-4.1 and
 // https://www.rfc-editor.org/rfc/rfc3986#section-4.2
@@ -334,9 +334,7 @@ func (u *uri) Authority() Authority {
 }
 
 // Query returns a map of key/value pairs of all parameters
-// in the query string of the URI.
-//
-//	This map contains the parsed query parameters like standard lib URL.Query().
+// in the query string of the URI, parsed like standard lib URL.Query().
 func (u *uri) Query() url.Values {
 	v, _ := url.ParseQuery(u.query)
 	return v
@@ -384,7 +382,7 @@ func (u *uri) Validate() error {
 	return nil
 }
 
-// String representation of an URI.
+// String representation of a URI.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
 func (u *uri) String() string {
@@ -427,7 +425,7 @@ func (u *uri) validateScheme(scheme string) error {
 	if !isASCIILetter(c) {
 		return errorsJoin(
 			ErrInvalidScheme,
-			fmt.Errorf("an URI scheme must start with an ASCII letter: %w", ErrURI),
+			fmt.Errorf("a URI scheme must start with an ASCII letter: %w", ErrURI),
 		)
 	}
 
@@ -465,7 +463,7 @@ func (u *uri) validateQuery(query string) error {
 	return nil
 }
 
-// validateFragment validatesthe fragment part.
+// validateFragment validates the fragment part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.5
 //
@@ -503,7 +501,7 @@ func (a authorityInfo) String() string {
 	return buf.String()
 }
 
-// Validate the Authority part.
+// Validate validates the Authority part.
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
 func (a *authorityInfo) Validate(schemes ...string) error {

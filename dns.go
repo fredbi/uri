@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// UsesDNSHostValidation returns true if the provided scheme has host validation
+// UsesDNSHostValidation reports whether the provided scheme has host validation
 // that does not follow RFC3986 (which is quite generic), and assumes a valid
 // DNS hostname instead.
 //

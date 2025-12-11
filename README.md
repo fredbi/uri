@@ -14,7 +14,7 @@ Package `uri` is meant to be an RFC 3986 compliant URI builder, parser and valid
 
 It supports strict RFC validation for URIs and URI relative references.
 
-This allows for stricter conformance than the `net/url` package in the `go` standard libary,
+This allows for stricter conformance than the `net/url` package in the `go` standard library,
 which provides a workable but loose implementation of the RFC for URLs.
 
 **Requires go1.19**.
@@ -24,12 +24,12 @@ which provides a workable but loose implementation of the RFC for URLs.
 ### V1.2 announcement
 
 To do before I cut a v1.2.0:
-* [] handle empty fragment, empty query.
+* [ ] handle empty fragment, empty query.
   Ex: `https://host?` is not equivalent to `http://host`.
   Similarly `https://host#` is not equivalent to `http://host`.
-* [] IRI UCS charset compliance
-* [] URI normalization (like [PuerkitoBio/purell](https://github.com/PuerkitoBio/purell))
-* [] more explicit errors, with context
+* [ ] IRI UCS charset compliance
+* [ ] URI normalization (like [PuerkitoBio/purell](https://github.com/PuerkitoBio/purell))
+* [ ] more explicit errors, with context
 
 See also [TODOs](./docs/TODO.md).
 
@@ -48,7 +48,7 @@ V2 is getting closer to completion. It comes with:
 
 * stricter scheme validation (no longer support non-ASCII letters).
   Ex: `Smørrebrød://` is not a valid scheme.
-* stricter IP validation (do not support escaping in addresses, excepted for IPv6 zones)
+* stricter IP validation (do not support escaping in addresses, except for IPv6 zones)
 * stricter percent-escape validation: an escaped character **MUST** decode to a valid UTF8 endpoint (1).
   Ex: %C3 is an incomplete escaped UTF8 sequence. Should be %C3%B8 to escape the full UTF8 rune.
 * stricter port validation. A port is an integer less than or equal to 65535.
@@ -97,9 +97,9 @@ V2 is getting closer to completion. It comes with:
 ```go
     isValid := IsURI("urn://example.com?query=x#fragment/path") // true
 
-    isValid= IsURI("//example.com?query=x#fragment/path") // false
+    isValid = IsURI("//example.com?query=x#fragment/path") // false
 
-    isValid= IsURIReference("//example.com?query=x#fragment/path") // true
+    isValid = IsURIReference("//example.com?query=x#fragment/path") // true
 ```
 
 #### Caveats
@@ -123,11 +123,11 @@ V2 is getting closer to completion. It comes with:
 
 ### Building
 
-The exposed type `URI` can be transformed into a fluent `Builder` to set the parts of an URI.
+The exposed type `URI` can be transformed into a fluent `Builder` to set the parts of a URI.
 
 ```go
 	aURI, _ := Parse("mailto://user@domain.com")
-	newURI := auri.Builder().SetUserInfo(test.name).SetHost("newdomain.com").SetScheme("http").SetPort("443")
+	newURI := aURI.Builder().SetUserInfo(test.name).SetHost("newdomain.com").SetScheme("http").SetPort("443")
 ```
 
 ### Canonicalization
@@ -150,16 +150,15 @@ The librarian's corner (still WIP).
 | Domain names implementation                 | [RFC1035](https://datatracker.ietf.org/doc/html/rfc1035) ||
 ||||
 | **IPv6** |||
-| Representing IPv6 Zone Identifiers          | [RFC6874](https://www.rfc-editor.org/rfc/rfc6874.txt) |      | |
+| Representing IPv6 Zone Identifiers          | [RFC6874](https://www.rfc-editor.org/rfc/rfc6874.txt) | |
 | IPv6 Addressing architecture                | [RFC3513](https://www.rfc-editor.org/rfc/rfc3513.txt) ||
 | **URI Schemes** |||
 ||||
-| IANA registered URI schemes                 | [IANA](https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml) | (5) | 
+| IANA registered URI schemes                 | [IANA](https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml) | (5) |
 ||||
 | **Port numbers** |||
 | IANA port assignments by service            | [IANA](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt) ||
-| Well-known TCP and UDP port numbers         | [Wikipedia)(https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers) ||
-| 
+| Well-known TCP and UDP port numbers         | [Wikipedia](https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers) ||
 
 **Notes**
 
@@ -172,11 +171,11 @@ The librarian's corner (still WIP).
 (2) Percent-escape:
 * Escape sequences, e.g. `%hh` _must_ decode to valid UTF8 runes (standard says _should_).
 
-(2) IP addresses:
-* As per RFC3986, `[hh::...]` literals _must_ be IPv6 and `ddd.ddd.ddd.ddd` litterals _must_ be IPv4.
+(3) IP addresses:
+* As per RFC3986, `[hh::...]` literals _must_ be IPv6 and `ddd.ddd.ddd.ddd` literals _must_ be IPv4.
 * As per RFC3986, notice that `[]` is illegal, although the golang IP parser translates this to `[::]` (zero value IP).
-  In `go`, the zero value for `netip.Addr` is invalid just a well.
-* IPv6 zones are supported, with the '%' escaped as '%25' to denote an IPv6 zoneID (RFC6974)
+  In `go`, the zero value for `netip.Addr` is invalid just as well.
+* IPv6 zones are supported, with the '%' escaped as '%25' to denote an IPv6 zoneID (RFC6874)
 * IPvFuture addresses _are_ supported, with escape sequences (which are not part of RFC3986, but natural since IPv6 do support escaping)
 
 (4) Deviations from the WhatWG recommendation
@@ -193,8 +192,8 @@ The librarian's corner (still WIP).
 
 ## Credits
 
-* Tests have been aggregated from the  test suites of URI validators from other languages:
-Perl, Python, Scala, .Net. and the Go url standard library.
+* Tests have been aggregated from the test suites of URI validators from other languages:
+Perl, Python, Scala, .NET and the Go url standard library.
 
 * This package was initially based on the work from ttacon/uri (credits: Trey Tacon).
 > Extra features like MySQL URIs present in the original repo have been removed.
@@ -226,8 +225,8 @@ Perl, Python, Scala, .Net. and the Go url standard library.
 * stricter compliance regarding paths beginning with a double '/'
 * stricter compliance regarding the length of DNS names and their segments
 * stricter compliance regarding IPv6 addresses with an empty zone
-* stricter compliance regarding IPv6 vs IPv4 litterals
-* an empty IPv6 litteral `[]` is invalid
+* stricter compliance regarding IPv6 vs IPv4 literals
+* an empty IPv6 literal `[]` is invalid
 
 **Known open issues**
 
