@@ -6,6 +6,7 @@ linters:
     - exhaustruct
     - funlen
     - godox
+    - gomoddirectives
     - ireturn # we be enabled again with v2
     - noinlineerr
     - nlreturn

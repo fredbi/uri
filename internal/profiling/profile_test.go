@@ -1,12 +1,13 @@
-//go:build profiling
-
-package uri
+package profiling
 
 import (
 	"testing"
 
+	"github.com/fredbi/uri"
+	"github.com/go-openapi/testify/v2/require"
 	"github.com/pkg/profile"
-	"github.com/stretchr/testify/require"
+
+	_ "unsafe" // enable to reuse a function from the URI test suite
 )
 
 func TestParseWithProfile(t *testing.T) {
@@ -43,15 +44,16 @@ func TestParseWithProfile(t *testing.T) {
 
 func runProfile(t *testing.T, n int) {
 	t.Helper()
-	for i := 0; i < n; i++ {
-		for _, generator := range allGenerators() {
-			for _, testCase := range generator() {
+
+	for range n {
+		for generator := range allGenerators() {
+			for testCase := range generator {
 				if testCase.isReference || testCase.err != nil {
 					// skip URI references and invalid cases
 					continue
 				}
 
-				u, err := Parse(testCase.uriRaw)
+				u, err := uri.Parse(testCase.uriRaw)
 				require.NoErrorf(t, err, "unexpected error for %q", testCase.uriRaw)
 				require.NotEmpty(t, u)
 			}
