@@ -2,33 +2,18 @@ version: "2"
 linters:
   default: all
   disable:
-    - cyclop
     - depguard
-    - errchkjson
-    - errorlint
     - exhaustruct
-    - forcetypeassert
     - funlen
-    - gochecknoglobals
-    - gochecknoinits
-    - gocognit
-    - godot
     - godox
-    - gosmopolitan
-    - inamedparam
-    - ireturn
-    - lll
-    - musttag
+    - ireturn # we be enabled again with v2
     - noinlineerr
-    - nestif
     - nlreturn
     - nonamedreturns
     - paralleltest
     - recvcheck
     - testpackage
-    - thelper
     - tparallel
-    - unparam
     - varnamelen
     - whitespace
     - wrapcheck
@@ -40,8 +25,32 @@ linters:
     goconst:
       min-len: 2
       min-occurrences: 3
+    cyclop:
+      max-complexity: 20
     gocyclo:
-      min-complexity: 55
+      min-complexity: 20
+    exhaustive:
+      default-signifies-exhaustive: true
+      default-case-required: true
+    lll:
+      line-length: 180
+    thelper:
+      test:
+        first: true
+        name: true
+        begin: true
+      benchmark:
+        first: true
+        name: true
+        begin: true
+      tb:
+        first: true
+        name: true
+        begin: false  # disable for testing.TB - asserter callbacks don't need tb.Helper()
+      fuzz:
+        first: true
+        name: true
+        begin: true
   exclusions:
     generated: lax
     presets:
@@ -57,9 +66,19 @@ formatters:
   enable:
     - gofmt
     - goimports
+    - gofumpt
   exclusions:
     generated: lax
     paths:
       - third_party$
       - builtin$
       - examples$
+issues:
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 0

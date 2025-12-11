@@ -127,7 +127,7 @@ func TestValidatePath(t *testing.T) {
 		"a/b/",
 		"/",
 		"",
-		"www/詹姆斯/org/",
+		"www/詹姆斯/org/", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 		"a//b//",
 	} {
 		require.NoErrorf(t, u.validatePath(path),
@@ -143,7 +143,7 @@ func TestValidatePath(t *testing.T) {
 		"a{/b/",
 		"/{",
 		"{",
-		"www/詹{姆斯/org/",
+		"www/詹{姆斯/org/", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 	} {
 		require.Errorf(t, u.validatePath(path),
 			"expected path %q NOT to validate",
@@ -152,6 +152,7 @@ func TestValidatePath(t *testing.T) {
 	}
 }
 
+//nolint:gocognit // essential complexity in comprehensive test coverage, might be refactored in future
 func testLoop(generator testGenerator) func(t *testing.T) {
 	// table-driven tests for IsURI, IsURIReference, Parse and ParseReference.
 	return func(t *testing.T) {
@@ -245,7 +246,8 @@ func testLoop(generator testGenerator) func(t *testing.T) {
 	}
 }
 
-func assertURI(t *testing.T, raw string, expected, actual interface{}) {
+func assertURI(t *testing.T, raw string, expected, actual any) {
+	t.Helper()
 	require.Equalf(t, expected, actual,
 		"got unexpected result (raw: %s), uri: %v != %v",
 		raw,
@@ -255,13 +257,14 @@ func assertURI(t *testing.T, raw string, expected, actual interface{}) {
 }
 
 func assertError(t *testing.T, expected, err error) {
+	t.Helper()
 	require.Errorf(t, err,
 		"expected Parse to return an error",
 	)
 
 	// check error type
-	_, isURIError := err.(Error)
-	require.Truef(t, isURIError,
+	var uriError Error
+	require.ErrorAsf(t, err, &uriError,
 		"expected any error returned to be of type uri.Error, but got %T", err,
 	)
 
@@ -281,6 +284,7 @@ func assertError(t *testing.T, expected, err error) {
 }
 
 func assertIsURI(t *testing.T, raw string, expectError, isReference bool) {
+	t.Helper()
 	if isReference {
 		if expectError {
 			require.False(t, IsURIReference(raw),

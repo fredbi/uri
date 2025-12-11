@@ -7,7 +7,7 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
-	for _, generator := range allGenerators {
+	for _, generator := range allGenerators() {
 		for _, testCase := range generator() {
 			f.Add(testCase.uriRaw)
 		}
