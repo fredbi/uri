@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-// IsIP indicates if the URI host was specified using an IP address (v4 or v6).
+// IsIP reports whether the URI host was specified using an IP address (v4 or v6).
 func (a authorityInfo) IsIP() bool {
 	// IPvFuture won't parse as a netip.Addr
 	return a.isIPv4 || (a.isIPv6 && !a.isIPvFuture)

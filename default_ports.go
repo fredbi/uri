@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// IsDefaultPort indicates if the port is specified and is different from
-// the defaut port defined for this scheme (if any).
+// IsDefaultPort reports whether the port is specified and is different from
+// the default port defined for this scheme (if any).
 //
-// For example, an URI like http://host:8080 would return false, since 80 is the default http port.
+// For example, a URI like http://host:8080 would return false, since 80 is the default http port.
 func (u uri) IsDefaultPort() bool {
 	if len(u.authority.port) == 0 {
 		return true

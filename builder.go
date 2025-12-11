@@ -11,7 +11,7 @@ type Builder interface {
 	SetQuery(query string) Builder
 	SetFragment(fragment string) Builder
 
-	// Returns the URI this Builder represents.
+	// String returns the URI this Builder represents.
 	String() string
 }
 

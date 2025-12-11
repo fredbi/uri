@@ -7,7 +7,7 @@ type (
 	}
 )
 
-// Sentinel error
+// ErrURI is a sentinel error to mark all errors raised by this package.
 var ErrURI = Error(newErr("URI error"))
 
 // Generic validation errors.
