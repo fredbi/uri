@@ -63,7 +63,7 @@ type Authority interface {
 	Port() string
 	Path() string
 	String() string
-	Validate(...string) error
+	Validate(schemes ...string) error
 
 	IsIP() bool
 	IPAddr() netip.Addr
@@ -92,13 +92,14 @@ const (
 )
 
 const (
-	// DNS name constants
+	// DNS name constants.
 	maxSegmentLength = 63
 	maxDomainLength  = 255
 )
 
+//nolint:gochecknoglobals // immutable private package-level constants for RFC 3986 character sets
 var (
-	// predefined sets of accecpted runes beyond the "unreserved" character set
+	// predefined sets of accecpted runes beyond the "unreserved" character set.
 	pcharExtraRunes           = []rune{colonMark, atHost} // pchar = unreserved | ':' | '@'
 	queryOrFragmentExtraRunes = append(pcharExtraRunes, slashMark, questionMark)
 	userInfoExtraRunes        = append(pcharExtraRunes, colonMark)
@@ -132,6 +133,7 @@ func ParseReference(raw string) (URI, error) {
 	return parse(raw, true)
 }
 
+//nolint:gocognit,gocyclo,cyclop // essential complexity in RFC 3986 URI parsing, might be refactored in future
 func parse(raw string, withURIReference bool) (URI, error) {
 	var (
 		scheme string
@@ -237,6 +239,7 @@ func parse(raw string, withURIReference bool) (URI, error) {
 		err                       error
 	)
 
+	//nolint:nestif // essential complexity in URI component parsing, would require major refactoring
 	if hierPartEnd > 0 {
 		hierPart = raw[curr:hierPartEnd]
 		authority, err = parseAuthority(hierPart)
@@ -384,7 +387,7 @@ func (u *uri) Validate() error {
 
 // String representation of a URI.
 //
-// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later
+// Reference: https://www.rfc-editor.org/rfc/rfc3986#section-6.2.2.1 and later.
 func (u *uri) String() string {
 	buf := strings.Builder{}
 	buf.Grow(len(u.scheme) + 1 + len(u.query) + 1 + len(u.fragment) + 1 + u.authority.builderSize())
@@ -469,7 +472,7 @@ func (u *uri) validateQuery(query string) error {
 //
 //	pchar = unreserved / pct-encoded / sub-delims / ":" / "@"
 //
-// fragment    = *( pchar / "/" / "?" )
+// fragment    = *( pchar / "/" / "?" ).
 func (u *uri) validateFragment(fragment string) error {
 	if err := validateUnreservedWithExtra(fragment, queryOrFragmentExtraRunes); err != nil {
 		return errorsJoin(ErrInvalidFragment, err)
@@ -506,7 +509,6 @@ func (a authorityInfo) String() string {
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2
 func (a *authorityInfo) Validate(schemes ...string) error {
 	ip, err := a.validate(schemes...)
-
 	if err != nil {
 		a.err = err
 
@@ -663,7 +665,7 @@ func (a authorityInfo) validateHost(host string, isIPv6 bool, schemes ...string)
 //   - otherwise, applies the "registered-name" validation stated by RFC 3986:
 //
 // dns-name see: https://www.rfc-editor.org/rfc/rfc1034, https://www.rfc-editor.org/info/rfc5890
-// reg-name    = *( unreserved / pct-encoded / sub-delims )
+// reg-name    = *( unreserved / pct-encoded / sub-delims ).
 func validateHostForScheme(host string, schemes ...string) error {
 	for _, scheme := range schemes {
 		if UsesDNSHostValidation(scheme) {
@@ -696,7 +698,7 @@ func validateRegisteredHostForScheme(host string) error {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.3
 //
-// port = *DIGIT
+// port = *DIGIT.
 func (a authorityInfo) validatePort(port, host string) error {
 	const maxPort uint64 = 65535
 
@@ -726,7 +728,7 @@ func (a authorityInfo) validatePort(port, host string) error {
 //
 // Reference: https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 //
-// userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+// userinfo    = *( unreserved / pct-encoded / sub-delims / ":" ).
 func (a authorityInfo) validateUserInfo(userinfo string) error {
 	if err := validateUnreservedWithExtra(userinfo, userInfoExtraRunes); err != nil {
 		return errorsJoin(
@@ -751,6 +753,7 @@ func parseAuthority(hier string) (authorityInfo, error) {
 		hier = strings.TrimPrefix(hier, authorityPrefix)
 	}
 
+	//nolint:nestif // essential complexity in path resolution logic, would require major refactoring
 	if prefix == "" {
 		path = hier
 	} else {

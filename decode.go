@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 )
 
+//nolint:gocyclo,cyclop // essential complexity in RFC 3986 character validation, might be refactored in future
 func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
@@ -64,6 +65,7 @@ func validateUnreservedWithExtra(s string, acceptedRunes []rune) error {
 	return nil
 }
 
+//nolint:gocognit // essential complexity in UTF-8 percent-encoding validation, might be refactored in future
 func unescapePercentEncoding(s string) (rune, int, error) {
 	var (
 		offset          int
@@ -85,6 +87,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 	)
 
 	// escaped utf8 sequence
+	//nolint:nestif // essential complexity in UTF-8 decoding logic, would require major refactoring
 	if codePoint[0] >= twoBytesUnicodePoint {
 		// expect another escaped sequence
 		if offset >= len(s) {
@@ -96,6 +99,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 		}
 		offset++
 
+		//nolint:gosec // G602: false positive, codePoint is [utf8.UTFMax]byte array (size 4), index 1 is valid
 		if codePoint[1], err = unescapeSequence(s[offset:]); err != nil {
 			return utf8.RuneError, 0, err
 		}
@@ -114,6 +118,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 			}
 			offset++
 
+			//nolint:gosec // G602: false positive, codePoint is [utf8.UTFMax]byte array (size 4), index 2 is valid
 			if codePoint[2], err = unescapeSequence(s[offset:]); err != nil {
 				return utf8.RuneError, 0, err
 			}
@@ -131,6 +136,7 @@ func unescapePercentEncoding(s string) (rune, int, error) {
 				}
 				offset++
 
+				//nolint:gosec // G602: false positive, codePoint is [utf8.UTFMax]byte array (size 4), index 3 is valid
 				if codePoint[3], err = unescapeSequence(s[offset:]); err != nil {
 					return utf8.RuneError, 0, err
 				}

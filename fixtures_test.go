@@ -11,19 +11,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var allGenerators = []testGenerator{
-	rawParsePassTests,
-	rawParseFailTests,
-	rawParseReferenceTests,
-	rawParseStructureTests,
-	rawParseSchemeTests,
-	rawParseUserInfoTests,
-	rawParsePathTests,
-	rawParseHostTests,
-	rawParseIPHostTests,
-	rawParsePortTests,
-	rawParseQueryTests,
-	rawParseFragmentTests,
+func allGenerators() []testGenerator {
+	return []testGenerator{
+		rawParsePassTests,
+		rawParseFailTests,
+		rawParseReferenceTests,
+		rawParseStructureTests,
+		rawParseSchemeTests,
+		rawParseUserInfoTests,
+		rawParsePathTests,
+		rawParseHostTests,
+		rawParseIPHostTests,
+		rawParsePortTests,
+		rawParseQueryTests,
+		rawParseFragmentTests,
+	}
 }
 
 func rawParseReferenceTests() []uriTest {
@@ -47,32 +49,32 @@ func rawParseReferenceTests() []uriTest {
 			comment:     "absolute reference with port",
 			uriRaw:      "//host.domain.com:8080/a/b",
 			isReference: true,
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "host.domain.com", u.Authority().Host())
-				assert.Equal(t, "8080", u.Authority().Port())
-				assert.Equal(t, "/a/b", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "host.domain.com", u.Authority().Host())
+				assert.Equal(tb, "8080", u.Authority().Port())
+				assert.Equal(tb, "/a/b", u.Authority().Path())
 			},
 		},
 		{
 			comment:     "absolute reference with query params",
 			uriRaw:      "//host.domain.com:8080?query=x/a/b",
 			isReference: true,
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "host.domain.com", u.Authority().Host())
-				assert.Equal(t, "8080", u.Authority().Port())
-				assert.Empty(t, u.Authority().Path())
-				assert.Equal(t, "x/a/b", u.Query().Get("query"))
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "host.domain.com", u.Authority().Host())
+				assert.Equal(tb, "8080", u.Authority().Port())
+				assert.Empty(tb, u.Authority().Path())
+				assert.Equal(tb, "x/a/b", u.Query().Get("query"))
 			},
 		},
 		{
 			comment:     "absolute reference with query params (reversed)",
 			uriRaw:      "//host.domain.com:8080/a/b?query=x",
 			isReference: true,
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "host.domain.com", u.Authority().Host())
-				assert.Equal(t, "8080", u.Authority().Port())
-				assert.Equal(t, "/a/b", u.Authority().Path())
-				assert.Equal(t, "x", u.Query().Get("query"))
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "host.domain.com", u.Authority().Host())
+				assert.Equal(tb, "8080", u.Authority().Port())
+				assert.Equal(tb, "/a/b", u.Authority().Path())
+				assert.Equal(tb, "x", u.Query().Get("query"))
 			},
 		},
 		{
@@ -216,38 +218,38 @@ func rawParseSchemeTests() []uriTest {
 		{
 			comment: "urn scheme",
 			uriRaw:  "urn://example-bin.org/path",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "urn", u.Scheme())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "urn", u.Scheme())
 			},
 		},
 		{
 			comment: "only scheme (DNS host), valid!",
 			uriRaw:  "http:",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "http", u.Scheme())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "http", u.Scheme())
 			},
 		},
 		{
 			comment: "only scheme (registered name empty), valid!",
 			uriRaw:  "foo:",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "foo", u.Scheme())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "foo", u.Scheme())
 			},
 		},
 		{
 			comment: "scheme without prefix (urn)",
 			uriRaw:  "urn:oasis:names:specification:docbook:dtd:xml:4.1.2",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "urn", u.Scheme())
-				assert.Equal(t, "oasis:names:specification:docbook:dtd:xml:4.1.2", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "urn", u.Scheme())
+				assert.Equal(tb, "oasis:names:specification:docbook:dtd:xml:4.1.2", u.Authority().Path())
 			},
 		},
 		{
 			comment: "scheme without prefix (urn-like)",
 			uriRaw:  "news:comp.infosystems.www.servers.unix",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "news", u.Scheme())
-				assert.Equal(t, "comp.infosystems.www.servers.unix", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "news", u.Scheme())
+				assert.Equal(tb, "comp.infosystems.www.servers.unix", u.Authority().Path())
 			},
 		},
 		{
@@ -257,8 +259,8 @@ func rawParseSchemeTests() []uriTest {
 		{
 			comment: "should assert scheme",
 			uriRaw:  "urn:oasis:names:specification:docbook:dtd:xml:4.1.2",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "urn", u.Scheme())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "urn", u.Scheme())
 			},
 		},
 		{
@@ -268,8 +270,8 @@ func rawParseSchemeTests() []uriTest {
 		{
 			comment: "with scheme only",
 			uriRaw:  "https:",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "https", u.Scheme())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "https", u.Scheme())
 			},
 		},
 		{
@@ -330,10 +332,10 @@ func rawParsePathTests() []uriTest {
 		{
 			comment: "legitimate use of several starting /'s in path'",
 			uriRaw:  "file://hostname//etc/hosts",
-			asserter: func(t testing.TB, u URI) {
+			asserter: func(tb testing.TB, u URI) {
 				auth := u.Authority()
-				require.Equal(t, "//etc/hosts", auth.Path())
-				require.Equal(t, "hostname", auth.Host())
+				require.Equal(tb, "//etc/hosts", auth.Path())
+				require.Equal(tb, "hostname", auth.Host())
 			},
 		},
 		{
@@ -343,15 +345,15 @@ func rawParsePathTests() []uriTest {
 		{
 			comment: "path",
 			uriRaw:  "https://example-bin.org/path?",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/path", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/path", u.Authority().Path())
 			},
 		},
 		{
 			comment: "empty path, query and fragment",
 			uriRaw:  "mailto://u:p@host.domain.com?#",
-			asserter: func(t testing.TB, u URI) {
-				assert.Empty(t, u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Empty(tb, u.Authority().Path())
 			},
 		},
 		{
@@ -361,16 +363,16 @@ func rawParsePathTests() []uriTest {
 		{
 			comment: "path only, no query, no fragmeny",
 			uriRaw:  "http://foo.com/path",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/path", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/path", u.Authority().Path())
 			},
 		},
 		{
 			comment: "path with escaped spaces",
 			uriRaw:  "http://example.w3.org/path%20with%20spaces.html",
-			asserter: func(t testing.TB, u URI) {
+			asserter: func(tb testing.TB, u URI) {
 				// path is stored unescaped
-				assert.Equal(t, "/path%20with%20spaces.html", u.Authority().Path())
+				assert.Equal(tb, "/path%20with%20spaces.html", u.Authority().Path())
 			},
 		},
 		{
@@ -384,8 +386,8 @@ func rawParsePathTests() []uriTest {
 		{
 			comment: "= in path",
 			uriRaw:  "ldap://[2001:db8::7]/c=GB?objectClass?one",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/c=GB", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/c=GB", u.Authority().Path())
 			},
 		},
 		{
@@ -393,18 +395,18 @@ func rawParsePathTests() []uriTest {
 			// this one is dubious: Microsoft (.Net) recognizes the C:/... string as a path and
 			// states this as incorrect uri -- all other validators state a host "c" and state this uri as a valid one
 			uriRaw: "file://c:/directory/filename",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "c", u.Authority().Host())
-				assert.Equal(t, "/directory/filename", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "c", u.Authority().Host())
+				assert.Equal(tb, "/directory/filename", u.Authority().Path())
 			},
 		},
 		{
 			comment: "path with drive letter (e.g. windows) (2)",
 			// The unambiguous correct URI notation is  file:///c:/directory/filename
 			uriRaw: "file:///c:/directory/filename",
-			asserter: func(t testing.TB, u URI) {
-				assert.Empty(t, u.Authority().Host())
-				assert.Equal(t, "/c:/directory/filename", u.Authority().Path())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Empty(tb, u.Authority().Host())
+				assert.Equal(tb, "/c:/directory/filename", u.Authority().Path())
 			},
 		},
 		{
@@ -465,8 +467,8 @@ func rawParseHostTests() []uriTest {
 		{
 			comment: "host with many segments",
 			uriRaw:  "ftp://ftp.is.co.za/rfc/rfc1808.txt",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "ftp.is.co.za", u.Authority().Host())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "ftp.is.co.za", u.Authority().Host())
 			},
 		},
 		{
@@ -476,15 +478,15 @@ func rawParseHostTests() []uriTest {
 		{
 			comment: "valid percent-encoded host (dash character is allowed in registered name)",
 			uriRaw:  "urn://user:passwd@ex%2Dample.com:8080/a?query=value#fragment",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "ex%2Dample.com", u.Authority().Host())
 			},
 		},
 		{
 			comment: "check percent encoding with DNS hostname, dash allowed in DNS name",
 			uriRaw:  "https://user:passwd@ex%2Dample.com:8080/a?query=value#fragment",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "ex%2Dample.com", u.Authority().Host())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "ex%2Dample.com", u.Authority().Host())
 			},
 		},
 		{
@@ -494,9 +496,9 @@ func rawParseHostTests() []uriTest {
 		},
 		{
 			comment: "unicode host",
-			uriRaw:  "http://www.詹姆斯.org/",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "www.詹姆斯.org", u.Authority().Host())
+			uriRaw:  "http://www.詹姆斯.org/", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "www.詹姆斯.org", u.Authority().Host()) //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 			},
 		},
 		{
@@ -612,8 +614,8 @@ func rawParseIPHostTests() []uriTest {
 		{
 			comment: "IPv6 host with zone",
 			uriRaw:  "https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25lo]:8080/a?query=value#fragment",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25lo", u.Authority().Host())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25lo", u.Authority().Host())
 			},
 		},
 		// Tests exercising RFC 6874 compliance:
@@ -1060,7 +1062,7 @@ func rawParsePassTests() []uriTest {
 		},
 		{
 			comment: "UTF-8 host",
-			uriRaw:  "http://www.詹姆斯.org/",
+			uriRaw:  "http://www.詹姆斯.org/", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 		},
 		{
 			comment: "Host with number at the start",
@@ -1089,10 +1091,10 @@ func rawParsePassTests() []uriTest {
 		{
 			comment: "should detect a path starting with a /",
 			uriRaw:  "file:///etc/hosts",
-			asserter: func(t testing.TB, u URI) {
+			asserter: func(tb testing.TB, u URI) {
 				auth := u.Authority()
-				require.Equal(t, "/etc/hosts", auth.Path())
-				require.Empty(t, auth.Host())
+				require.Equal(tb, "/etc/hosts", auth.Path())
+				require.Empty(tb, auth.Host())
 			},
 		},
 		{
@@ -1139,69 +1141,72 @@ func rawParsePassTests() []uriTest {
 		{
 			comment: "should assert path and fragment",
 			uriRaw:  "https://example-bin.org/path#frag?withQuestionMark",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/path", u.Authority().Path())
-				assert.Empty(t, u.Query())
-				assert.Equal(t, "frag?withQuestionMark", u.Fragment())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/path", u.Authority().Path())
+				assert.Empty(tb, u.Query())
+				assert.Equal(tb, "frag?withQuestionMark", u.Fragment())
 			},
 		},
 		{
 			comment: "should assert path and fragment (2)",
 			uriRaw:  "mailto://u:p@host.domain.com?#ahahah",
-			asserter: func(t testing.TB, u URI) {
-				assert.Empty(t, u.Authority().Path())
-				assert.Empty(t, u.Query())
-				assert.Equal(t, "ahahah", u.Fragment())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Empty(tb, u.Authority().Path())
+				assert.Empty(tb, u.Query())
+				assert.Equal(tb, "ahahah", u.Fragment())
 			},
 		},
 		{
 			comment: "should assert path and query",
 			uriRaw:  "ldap://[2001:db8::7]/c=GB?objectClass?one",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/c=GB", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "objectClass?one", nuri.query) // TODO(fred): use Query() and url.Values
-				assert.Empty(t, u.Fragment())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/c=GB", u.Authority().Path())
+				nuri, ok := u.(*uri)
+				require.True(tb, ok, "expected URI to be *uri type")
+				assert.Equal(tb, "objectClass?one", nuri.query) // TODO(fred): use Query() and url.Values
+				assert.Empty(tb, u.Fragment())
 			},
 		},
 		{
 			comment: "should assert path and query",
 			uriRaw:  "http://www.example.org/hello/world.txt/?id=5&part=three",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/hello/world.txt/", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "id=5&part=three", nuri.query)
-				assert.Empty(t, u.Fragment())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/hello/world.txt/", u.Authority().Path())
+				nuri, ok := u.(*uri)
+				require.True(tb, ok, "expected URI to be *uri type")
+				assert.Equal(tb, "id=5&part=three", nuri.query)
+				assert.Empty(tb, u.Fragment())
 			},
 		},
 		{
 			comment: "should assert path and query",
 			uriRaw:  "http://www.example.org/hello/world.txt/?id=5&part=three?another#abc?efg",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "/hello/world.txt/", u.Authority().Path())
-				nuri := u.(*uri)
-				assert.Equal(t, "id=5&part=three?another", nuri.query)
-				assert.Equal(t, "abc?efg", u.Fragment())
-				assert.Equal(t, url.Values{"id": []string{"5"}, "part": []string{"three?another"}}, u.Query())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "/hello/world.txt/", u.Authority().Path())
+				nuri, ok := u.(*uri)
+				require.True(tb, ok, "expected URI to be *uri type")
+				assert.Equal(tb, "id=5&part=three?another", nuri.query)
+				assert.Equal(tb, "abc?efg", u.Fragment())
+				assert.Equal(tb, url.Values{"id": []string{"5"}, "part": []string{"three?another"}}, u.Query())
 			},
 		},
 		{
 			comment: "should assert path and query",
 			uriRaw:  "https://user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25en0]:8080/a?query=value#fragment",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25en0", u.Authority().Host())
-				assert.Equal(t, "//user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25en0]:8080/a", u.Authority().String())
-				assert.Equal(t, "https", u.Scheme())
-				assert.Equal(t, url.Values{"query": []string{"value"}}, u.Query())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25en0", u.Authority().Host())
+				assert.Equal(tb, "//user:passwd@[21DA:00D3:0000:2F3B:02AA:00FF:FE28:9C5A%25en0]:8080/a", u.Authority().String())
+				assert.Equal(tb, "https", u.Scheme())
+				assert.Equal(tb, url.Values{"query": []string{"value"}}, u.Query())
 			},
 		},
 		{
 			comment: "should parse user/password, IPv6 percent-encoded host with zone",
 			uriRaw:  "https://user:passwd@[::1%25lo]:8080/a?query=value#fragment",
-			asserter: func(t testing.TB, u URI) {
-				assert.Equal(t, "https", u.Scheme())
-				assert.Equal(t, "8080", u.Authority().Port())
-				assert.Equal(t, "user:passwd", u.Authority().UserInfo())
+			asserter: func(tb testing.TB, u URI) {
+				assert.Equal(tb, "https", u.Scheme())
+				assert.Equal(tb, "8080", u.Authority().Port())
+				assert.Equal(tb, "user:passwd", u.Authority().UserInfo())
 			},
 		},
 	}

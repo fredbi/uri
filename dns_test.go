@@ -26,8 +26,8 @@ func TestValidateHostForScheme(t *testing.T) {
 		"a.1b",
 		"a.b.c.d",
 		"a-b.c-d",
-		"www.詹姆斯.org",
-		"www.詹-姆斯.org",
+		"www.詹姆斯.org",  //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
+		"www.詹-姆斯.org", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 		fmt.Sprintf("a.%s.c", strings.Repeat("b", 63)),
 		"a%2Eb%2ec.d",
 		"a.b.c.d%30",
@@ -50,8 +50,8 @@ func TestValidateHostForScheme(t *testing.T) {
 		"a.b.c..",
 		".",
 		"",
-		"www.詹姆斯.org/",
-		"www.詹{姆}斯.org/",
+		"www.詹姆斯.org/",   //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
+		"www.詹{姆}斯.org/", //nolint:gosmopolitan // legitimate test case for IRI (Internationalized Resource Identifier) support
 		fmt.Sprintf("a.%s.c", strings.Repeat("b", 64)),
 		fmt.Sprintf("a.%sb.c", string([]rune{utf8.RuneError})),
 		fmt.Sprintf("%sa.b.c", string([]rune{utf8.RuneError})), //nolint:perfsprint // we prefer consistency with the above lines over performance

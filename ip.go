@@ -26,8 +26,7 @@ func (a authorityInfo) IPAddr() netip.Addr {
 	return addr
 }
 
-//nolint:dupword,mnd // false positive in the BNF comment
-//nolint:mnd // straightforward interpretation, no need to define a constant
+//nolint:dupword,mnd,gocognit // false positive in BNF comment, essential complexity in IPv4 validation, might be refactored in future
 func validateIPv4(host string) error {
 	//
 	// check for IPv4 address
@@ -65,6 +64,7 @@ func validateIPv4(host string) error {
 					return errValueGreater255
 				}
 			case 2:
+				//nolint:gosec // G602: false positive, currentPart is [3]byte array, indices 0-1 valid when digitNum==2
 				if currentPart[0] == '2' && currentPart[1] == '5' && b > '5' {
 					return errValueGreater255
 				}
@@ -72,6 +72,7 @@ func validateIPv4(host string) error {
 				return errValueGreater255
 			}
 
+			//nolint:gosec // G602: false positive, digitNum validated by switch above to be 0, 1, or 2 (default errors)
 			currentPart[digitNum] = b
 			digitNum++
 		case b == '.':

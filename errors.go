@@ -17,7 +17,7 @@ var (
 	ErrInvalidEscaping  = Error(newErr("invalid percent-escaping sequence"))
 )
 
-// URI-specific errors
+// URI-specific errors.
 var (
 	ErrNoSchemeFound   = Error(newErr("no scheme found in URI"))
 	ErrInvalidScheme   = Error(newErr("invalid scheme in URI"))
@@ -25,7 +25,7 @@ var (
 	ErrInvalidFragment = Error(newErr("invalid fragment in URI"))
 )
 
-// Authority-specific errors
+// Authority-specific errors.
 var (
 	ErrInvalidPath           = Error(newErr("invalid path in URI"))
 	ErrInvalidHost           = Error(newErr("invalid host in URI"))

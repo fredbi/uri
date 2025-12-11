@@ -32,6 +32,8 @@ func (u uri) DefaultPort() int {
 // * https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
 //
 // Also: https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
+//
+//nolint:gocyclo,cyclop // essential complexity in well-known scheme port mapping, might be refactored in future
 func defaultPortForScheme(scheme string) uint64 {
 	//nolint:mnd // no need to define default ports with additional constants
 	switch scheme {

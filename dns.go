@@ -15,6 +15,8 @@ import (
 // in case you need specific schemes to validate the host as a DNS name.
 //
 // See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml
+//
+//nolint:gocyclo,gochecknoglobals // essential complexity in scheme-specific DNS validation rules, might be refactored in future; public API explicitly designed to be overridable
 var UsesDNSHostValidation = func(scheme string) bool {
 	switch scheme {
 	// prioritize early exit on most commonly used schemes

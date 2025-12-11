@@ -44,7 +44,7 @@ func TestParseWithProfile(t *testing.T) {
 func runProfile(t *testing.T, n int) {
 	t.Helper()
 	for i := 0; i < n; i++ {
-		for _, generator := range allGenerators {
+		for _, generator := range allGenerators() {
 			for _, testCase := range generator() {
 				if testCase.isReference || testCase.err != nil {
 					// skip URI references and invalid cases
